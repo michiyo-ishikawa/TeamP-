@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seagulls Task Alert</title>
+    <style>
+        :root {
+            --seagulls-navy: #003366;
+            --seagulls-blue: #00A0E9;
+            --status-todo: #ff4d4d;
+            --status-doing: #ffcc00;
+            --status-done: #2ecc71;
+            --alert-bg: #fff5f5;
+            --bg: #f0f2f5;
+        }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 500px; }
+        h1 { color: var(--seagulls-navy); text-align: center; font-weight: 800; }
+        
+        .form-section { background: white; padding: 20px; border-radius: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #eee; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        .add-btn { width: 100%; background: var(--seagulls-navy); color: white; padding: 14px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+
+        .filter-tabs { display: flex; gap: 8px; margin-bottom: 15px; background: #e0e0e0; padding: 4px; border-radius: 12px; }
+        .filter-tabs button { flex: 1; padding: 10px; border: none; border-radius: 10px; background: transparent; font-size: 0.9rem; font-weight: bold; color: #666; cursor: pointer; }
+        .filter-tabs button.active { background: white; color: var(--seagulls-navy); }
+
+        .task-list { display: flex; flex-direction: column; gap: 12px; }
+        .task-item { background: white; padding: 16px; border-radius: 15px; border-left: 8px solid #ccc; position: relative; }
+        .task-item.todo { border-left-color: var(--status-todo); }
+        .task-item.doing { border-left-color: var(--status-doing); }
+        .task-item.done { border-left-color: var(--status-done); opacity: 0.6; }
+        
+        /* 24時間前アラートの強調スタイル */
+        .urgent { background: var(--alert-bg); border-style: dotted; animation: blink 2s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { background: #ffebeb; } 100% { opacity: 1; } }
+
+        .badge { font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; color: white; margin-bottom: 8px; display: inline-block; }
+        .todo .badge { background: var(--status-todo); }
+        .doing .badge { background: var(--status-doing); color: #333; }
+        .done .badge { background: var(--status-done); }
+        .urgent-label { background: #ff0000; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 5px; margin-left: 5px; vertical-align: middle; }
+
+        .task-title { font-weight: bold; font-size: 1.1rem; }
+        .actions { margin-top: 15px; display: flex; gap: 8px; border-top: 1px solid #eee; padding-top: 12px; }
+        .actions button { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <h1>Seagulls Tasks</h1>
+        <div class="form-section">
+            <input type="text" id="t-name" placeholder="タスクの内容">
+            <input type="datetime-local" id="t-date">
+            <button class="add-btn" onclick="saveTask()">タスクを登録</button>
+        </div>
+        <div class="filter-tabs">
+            <button id="f-all" class="active" onclick="setFilter('all')">すべて</button>
+            <button id="f-active" onclick="setFilter('active')">進行中</button>
+            <button id="f-done" onclick="setFilter('done')">完了済み</button>
+        </div>
+        <div id="task-container" class="task-list"></div>
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('seagulls_v4')) || [];
+        let currentFilter = 'all';
+
+        // 通知の許可を求める
+        if (window.Notification && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+
+        function saveTask() {
+            const name = document.getElementById('t-name').value;
+            const date = document.getElementById('t-date').value;
+            if (!name || !date) { alert('内容と日時を入力してください'); return; }
+            tasks.push({ id: Date.now(), name, date, status: 'todo', alerted: false });
+            update();
+        }
+
+        function update() {
+            localStorage.setItem('seagulls_v4', JSON.stringify(tasks));
+            const container = document.getElementById('task-container');
+            container.innerHTML = '';
+            const now = new Date();
+
+            const filtered = tasks.filter(t => {
+                if (currentFilter === 'active') return t.status !== 'done';
+                if (currentFilter === 'done') return t.status === 'done';
+                return true;
+            }).sort((a,b) => new Date(a.date) - new Date(b.date));
+
+            filtered.forEach(t => {
+                const deadline = new Date(t.date);
+                const diffMs = deadline - now;
+                const diffHours = diffMs / (1000 * 60 * 60);
+                const isUrgent = diffHours > 0 && diffHours <= 24 && t.status !== 'done';
+
+                // 24時間前になった瞬間に通知を出す（一度だけ）
+                if (isUrgent && !t.alerted) {
+                    sendNotification(t.name);
+                    t.alerted = true; 
+                }
+
+                const div = document.createElement('div');
+                div.className = `task-item ${t.status} ${isUrgent ? 'urgent' : ''}`;
+                div.innerHTML = `
+                    <span class="badge">${t.status === 'todo' ? '未対応' : t.status === 'doing' ? '進行中' : '完了 ✓'}</span>
+                    ${isUrgent ? '<span class="urgent-label">あと24時間以内！</span>' : ''}
+                    <div class="task-title">${t.name}</div>
+                    <div style="font-size:0.85rem; color:#666;">⏰ ${t.date.replace('T',' ')}</div>
+                    <div class="actions">
+                        <button onclick="setStatus(${t.id}, 'doing')">着手</button>
+                        <button onclick="setStatus(${t.id}, 'done')">完了</button>
+                        <button onclick="deleteTask(${t.id})" style="color:red;">削除</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function sendNotification(name) {
+            if (Notification.permission === "granted") {
+                new Notification("シーガルズ・タスク", {
+                    body: `「${name}」の期限まであと24時間です！`,
+                    icon: "https://via.placeholder.com/128/003366/ffffff?text=S" 
+                });
+            }
+            alert(`【24時間前アラート】\n「${name}」の期限が迫っています！`);
+        }
+
+        function setStatus(id, status) {
+            tasks = tasks.map(t => t.id === id ? {...t, status} : t);
+            update();
+        }
+
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            update();
+        }
+
+        function setFilter(f) {
+            currentFilter = f;
+            document.querySelectorAll('.filter-tabs button').forEach(b => b.classList.remove('active'));
+            document.getElementById('f-' + f).classList.add('active');
+            update();
+        }
+
+        // 1分ごとにチェック
+        setInterval(update, 60000);
+        update();
+    </script>
+</body>
+</html>
