@@ -1,0 +1,2750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ピリリメンバーズクラブ 会員管理</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Bebas+Neue&display=swap');
+
+  :root {
+    --bg: #0e0e10;
+    --surface: #18181c;
+    --surface2: #222228;
+    --border: #2e2e38;
+    --accent: #c8a84b;
+    --accent2: #e8c96a;
+    --text: #e8e8ec;
+    --text2: #8888a0;
+    --red: #e05555;
+    --green: #4caf7d;
+    --blue: #5599ee;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: linear-gradient(135deg, #18181c 0%, #1a1a20 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .logo span { color: var(--text2); font-size: 15px; font-family: 'Noto Sans JP', sans-serif; display: block; letter-spacing: 1px; margin-top: 2px; }
+  .nav-tabs {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .nav-tab {
+    padding: 7px 18px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .nav-tab.active {
+    background: var(--accent);
+    color: #000;
+  }
+  .badge {
+    background: var(--accent);
+    color: #000;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-left: 6px;
+  }
+
+  /* ===== LAYOUT ===== */
+  .main { display: flex; height: calc(100vh - 57px); position: relative; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    width: 290px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .search-box {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .search-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .filter-row {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .filter-chip {
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: all 0.15s;
+  }
+  .filter-chip.active {
+    border-color: var(--accent);
+    background: rgba(200,168,75,0.15);
+    color: var(--accent);
+  }
+  .member-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .member-item {
+    padding: 12px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    margin-bottom: 3px;
+  }
+  .member-item:hover { background: var(--surface2); }
+  .member-item.selected {
+    background: rgba(200,168,75,0.1);
+    border-color: rgba(200,168,75,0.3);
+  }
+  .member-name {
+    font-weight: 500;
+    font-size: 15px;
+    color: var(--text);
+  }
+  .member-org {
+    font-size: 13px;
+    color: var(--text2);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .member-badges {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .tag {
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+  }
+  .tag-joined { background: rgba(76,175,125,0.2); color: var(--green); }
+  .tag-founder { background: rgba(200,168,75,0.2); color: var(--accent); }
+  .tag-staff { background: rgba(85,153,238,0.2); color: var(--blue); }
+
+  /* ===== DETAIL PANEL ===== */
+  .detail-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: var(--bg);
+  }
+  .detail-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .detail-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .detail-name-badges { display: flex; gap: 6px; margin-top: 6px; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text2);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .info-item label {
+    font-size: 13px;
+    color: var(--text2);
+    display: block;
+    margin-bottom: 3px;
+  }
+  .info-item span {
+    font-size: 15px;
+    color: var(--text);
+  }
+  .info-item a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .info-item.full { grid-column: 1/-1; }
+
+  /* ===== EVENTS TABLE ===== */
+  .events-table { width: 100%; border-collapse: collapse; }
+  .events-table th {
+    font-size: 13px;
+    color: var(--text2);
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+  }
+  .events-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(46,46,56,0.5);
+    font-size: 15px;
+  }
+  .events-table tr:last-child td { border-bottom: none; }
+  .attend-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .attend-circle { background: rgba(76,175,125,0.15); color: var(--green); }
+  .attend-x { background: rgba(224,85,85,0.15); color: var(--red); }
+  .attend-1 { background: rgba(85,153,238,0.15); color: var(--blue); }
+  .attend-2 { background: rgba(200,168,75,0.15); color: var(--accent); }
+  .attend-3 { background: rgba(170,100,200,0.15); color: #bb88dd; }
+  .attend-num { background: rgba(100,150,100,0.15); color: #88cc88; }
+
+  /* ===== EVENT VIEW ===== */
+  .event-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .event-toolbar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+  .event-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+    min-width: 200px;
+  }
+  .event-select:focus { border-color: var(--accent); }
+  .event-stats {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+  .stat-box {
+    text-align: center;
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+  }
+  .stat-num { font-size: 20px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .stat-label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .event-type-tag {
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: rgba(200,168,75,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(200,168,75,0.3);
+  }
+  .new-event-btn {
+    padding: 7px 14px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .new-event-btn:hover { background: var(--accent2); }
+  .event-table-wrap { flex: 1; overflow: auto; }
+  .attendance-table { width: 100%; border-collapse: collapse; }
+  .attendance-table th {
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-size: 13px;
+    color: var(--text2);
+    padding: 9px 12px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+  }
+  .attendance-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(46,46,56,0.5);
+    vertical-align: middle;
+  }
+  .attendance-table tr:hover td { background: rgba(30,30,40,0.5); }
+  .attend-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+    min-width: 100px;
+  }
+  .attend-select:focus { border-color: var(--accent); }
+  .attend-select.has-value { border-color: var(--green); }
+
+  /* ===== EXPORT PANEL ===== */
+  .export-panel {
+    padding: 20px;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+  .export-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .export-btn {
+    padding: 10px 20px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    margin-right: 10px;
+    margin-top: 10px;
+  }
+  .export-btn:hover { background: var(--accent2); }
+  .export-btn.secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .export-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .data-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 13px;
+    color: var(--text2);
+    font-family: monospace;
+    max-height: 200px;
+    overflow: auto;
+    margin-top: 10px;
+    white-space: pre;
+  }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--accent);
+  }
+  .form-group {
+    margin-bottom: 14px;
+  }
+  .form-group label {
+    font-size: 13px;
+    color: var(--text2);
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .btn-cancel {
+    padding: 8px 16px;
+    background: var(--surface2);
+    color: var(--text2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+  }
+  .btn-save {
+    padding: 8px 20px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  /* ===== FEE TAB ===== */
+  .fee-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .fee-toolbar {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .fee-year-tabs { display:flex; gap:4px; }
+  .fee-year-tab {
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .fee-year-tab.active { background: var(--accent); color:#000; border-color:var(--accent); font-weight:700; }
+  .fee-table-wrap { flex:1; overflow:auto; }
+  .fee-table { width:100%; border-collapse:collapse; }
+  .fee-table th {
+    background: var(--surface);
+    position: sticky; top:0; z-index:10;
+    font-size: 13px; color:var(--text2);
+    padding: 9px 14px; text-align:left;
+    font-weight:500; border-bottom:1px solid var(--border);
+  }
+  .fee-table td { padding:10px 16px; border-bottom:1px solid rgba(46,46,56,0.5); vertical-align:middle; }
+  .fee-table tr:hover td { background:rgba(30,30,40,0.5); }
+  .fee-toggle {
+    display: inline-flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .fee-toggle button {
+    padding: 4px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-size: 15px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    transition: all 0.15s;
+  }
+  .fee-toggle button.paid { background:rgba(76,175,125,0.2); color:var(--green); font-weight:700; }
+  .fee-toggle button.unpaid { background:rgba(224,85,85,0.2); color:var(--red); font-weight:700; }
+  .fee-add-year {
+    padding: 5px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text2);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .fee-add-year:hover { border-color:var(--accent); color:var(--accent); }
+  .fee-summary { margin-left:auto; display:flex; gap:10px; }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text2);
+    gap: 8px;
+  }
+  .empty-icon { font-size: 52px; opacity: 0.3; }
+
+  /* ===== CHANGED INDICATOR ===== */
+  .changed-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 4px;
+  }
+  .save-notice {
+    font-size: 13px;
+    color: var(--accent);
+    padding: 4px 10px;
+    background: rgba(200,168,75,0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(200,168,75,0.3);
+  }
+
+  /* ===== Firebase 同期インジケーター ===== */
+  .sync-indicator {
+    margin-left: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s;
+  }
+  .sync-indicator::before {
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .sync-indicator.connecting { color: #e8c96a; background: rgba(232,201,106,0.1); border: 1px solid rgba(232,201,106,0.3); }
+  .sync-indicator.synced { color: #4caf7d; background: rgba(76,175,125,0.1); border: 1px solid rgba(76,175,125,0.3); }
+  .sync-indicator.saving { color: #5599ee; background: rgba(85,153,238,0.1); border: 1px solid rgba(85,153,238,0.3); }
+  .sync-indicator.error { color: #e05555; background: rgba(224,85,85,0.1); border: 1px solid rgba(224,85,85,0.3); }
+  .sync-indicator.synced::before { animation: pulse-green 2s infinite; }
+  @keyframes pulse-green {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PIRIRI<span>Members Club Management</span></div>
+  <div id="syncIndicator" class="sync-indicator connecting">接続中...</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('members')">会員一覧</button>
+    <button class="nav-tab" onclick="switchTab('events')">イベント管理</button>
+    <button class="nav-tab" onclick="switchTab('fee')">会費管理</button>
+    <button class="nav-tab" onclick="switchTab('export')">エクスポート</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ===== MEMBERS TAB ===== -->
+  <div id="tab-members" style="position:absolute;inset:0;display:flex;width:100%;height:100%">
+    <div class="sidebar">
+      <div class="search-box" style="display:flex;gap:6px">
+        <input class="search-input" type="text" placeholder="🔍 氏名・所属・車種で検索..." id="searchInput" oninput="filterMembers()" style="flex:1">
+        <button class="new-event-btn" onclick="openAddMemberModal()" title="会員追加" style="white-space:nowrap;padding:7px 10px">＋</button>
+      </div>
+      <div class="filter-row" style="flex-wrap:wrap;gap:4px">
+        <button class="filter-chip active" onclick="setFilter('all',this)">全員</button>
+        <button class="filter-chip" onclick="setFilter('joined',this)">入会済</button>
+        <button class="filter-chip" onclick="setFilter('founder',this)">発起人</button>
+        <button class="filter-chip" onclick="setFilter('staff',this)">事務局</button>
+        <button class="filter-chip" onclick="setFilter('family',this)" style="border-color:var(--accent);color:var(--accent)">家族会員</button>
+        <button class="filter-chip" onclick="setFilter('withdrawn',this)" style="border-color:var(--red);color:var(--red)">退会者</button>
+        <button class="filter-chip" onclick="exportMemberListPDF()" style="border-color:rgba(200,168,75,0.5);color:var(--accent);margin-left:auto">📄 一覧PDF</button>
+      </div>
+      <div class="member-list" id="memberList"></div>
+    </div>
+    <div class="detail-panel" id="detailPanel">
+      <div class="empty-state">
+        <div class="empty-icon">👤</div>
+        <div>会員を選択してください</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== EVENTS TAB ===== -->
+  <div id="tab-events" class="event-panel" style="position:absolute;inset:0;display:none">
+    <div class="event-toolbar" style="flex-wrap:wrap;gap:8px">
+      <select class="event-select" id="eventSelect" onchange="loadEventAttendance()">
+        <option value="">イベントを選択...</option>
+      </select>
+      <span class="event-type-tag" id="eventTypeTag" style="display:none"></span>
+      <div style="height:24px;width:1px;background:var(--border);margin:0 2px"></div>
+      <input id="eventSearchInput" class="search-input" type="text"
+        placeholder="🔍 氏名・所属で絞り込み..."
+        oninput="loadEventAttendance()" style="width:200px">
+      <div style="display:flex;gap:4px">
+        <button class="filter-chip active" id="evFilterAll"      onclick="setEvFilter('all',this)">全員</button>
+        <button class="filter-chip"        id="evFilterAttend"   onclick="setEvFilter('attend',this)">出席のみ</button>
+        <button class="filter-chip"        id="evFilterAbsent"   onclick="setEvFilter('absent',this)">欠席のみ</button>
+        <button class="filter-chip"        id="evFilterEmpty"    onclick="setEvFilter('empty',this)">未入力</button>
+      </div>
+      <div class="event-stats" id="eventStats"></div>
+      <button class="new-event-btn" onclick="exportEventPDF()" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)" id="pdfBtn" disabled>📄 参加者リスト PDF</button>
+      <button class="new-event-btn" onclick="openNewEventModal()">＋ 新規イベント</button>
+    </div>
+    <div class="event-table-wrap">
+      <div id="eventTableContainer">
+        <div class="empty-state" style="padding-top:80px">
+          <div class="empty-icon">📅</div>
+          <div>イベントを選択してください</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FEE TAB ===== -->
+  <div id="tab-fee" class="fee-panel" style="position:absolute;inset:0;display:none">
+    <div class="fee-toolbar" style="flex-wrap:wrap;gap:10px">
+      <div class="fee-year-tabs" id="feeYearTabs"></div>
+      <button class="fee-add-year" onclick="addFeeYear()">＋ 年度追加</button>
+      <div style="height:24px;width:1px;background:var(--border);margin:0 4px"></div>
+      <input id="feeSearchInput" class="search-input" type="text" placeholder="🔍 氏名・所属で検索..."
+        oninput="renderFeeTable()" style="width:210px">
+      <div style="display:flex;gap:4px">
+        <button class="filter-chip active" id="feeFilterAll"    onclick="setFeeFilter('all',this)">全員</button>
+        <button class="filter-chip"        id="feeFilterPaid"   onclick="setFeeFilter('paid',this)">✅ 納入済</button>
+        <button class="filter-chip"        id="feeFilterUnpaid" onclick="setFeeFilter('unpaid',this)">⬜ 未納</button>
+      </div>
+      <div class="fee-summary" id="feeSummary"></div>
+      <button class="new-event-btn" onclick="exportFeePDF()" style="margin-left:auto;background:rgba(200,168,75,0.15);color:var(--accent);border:1px solid rgba(200,168,75,0.4)">📄 納入状況 PDF</button>
+    </div>
+    <div class="fee-table-wrap">
+      <table class="fee-table" id="feeTable">
+        <thead><tr>
+          <th>No</th><th>氏名</th><th>所属</th><th style="text-align:center">納入状況</th>
+        </tr></thead>
+        <tbody id="feeTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== EXPORT TAB ===== -->
+  <div id="tab-export" class="export-panel" style="position:absolute;inset:0;display:none">
+
+    <!-- Excel保存 -->
+    <div class="export-card" style="border:1px solid rgba(200,168,75,0.4);background:rgba(200,168,75,0.06)">
+      <div class="section-title">💾 Excelに保存する（PC・iPhone共通）</div>
+      <p style="color:var(--text2);font-size:14px;line-height:1.7;margin-bottom:14px">
+        会員名簿・イベント出欠・会費管理を<strong style="color:var(--accent)">1つのExcelファイル</strong>に保存します。<br>
+        保存したファイルをiPhoneに送り、「Excelを読み込む」で全データを復元できます。
+      </p>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="export-btn" style="margin:0;font-size:15px;padding:12px 32px" onclick="exportExcel()">
+          💾 Excelに保存する
+        </button>
+        <span id="xl-status-members" style="font-size:13px;color:var(--green)"></span>
+        <span id="xl-status-events" style="display:none"></span>
+        <span id="xl-status-fee" style="display:none"></span>
+      </div>
+    </div>
+
+    <!-- Excel読み込み -->
+    <div class="export-card" style="border:1px solid rgba(200,168,75,0.4);background:rgba(200,168,75,0.06)">
+      <div class="section-title">📂 Excelから読み込む（PC・iPhone共通）</div>
+      <p style="color:var(--text2);font-size:14px;line-height:1.7;margin-bottom:14px">
+        PCで保存したExcelファイルを読み込みます。iPhoneでは「ファイルアプリ」に保存したExcelを選択してください。<br>
+        <span style="color:var(--red);font-size:13px">※現在のデータは上書きされます</span>
+      </p>
+      <input type="file" id="excelFile" accept=".xlsx,.xls" style="display:none" onchange="loadExcel(this)">
+      <button class="export-btn" style="margin:0;font-size:15px;padding:12px 32px" onclick="document.getElementById('excelFile').click()">
+        📂 Excelを読み込む
+      </button>
+      <div id="loadStatus" style="margin-top:10px;font-size:14px;color:var(--text2)"></div>
+    </div>
+
+    <!-- CSV出力 -->
+    <div class="export-card">
+      <div class="section-title">📋 CSVでコピー（PCのみ）</div>
+      <p style="color:var(--text2);font-size:14px;line-height:1.7;margin-bottom:12px">
+        ボタンを押す → メモ帳に貼り付け → 拡張子 <strong style="color:var(--accent)">.csv</strong> で保存
+      </p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="export-btn secondary" style="margin:0;min-width:200px" onclick="copyCSV('members')">👥 会員名簿</button>
+          <span id="copy-status-members" style="font-size:13px;color:var(--green)"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="export-btn secondary" style="margin:0;min-width:200px" onclick="copyCSV('events')">📅 出席一覧</button>
+          <span id="copy-status-events" style="font-size:13px;color:var(--green)"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="export-btn secondary" style="margin:0;min-width:200px" onclick="copyCSV('fee')">💴 会費納入一覧</button>
+          <span id="copy-status-fee" style="font-size:13px;color:var(--green)"></span>
+        </div>
+      </div>
+      <div id="csvPreviewBox" style="display:none;margin-top:14px">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:6px">▼ コピーできない場合は全選択（Ctrl+A）してコピー</p>
+        <textarea id="csvPreviewText" style="width:100%;height:140px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:monospace;padding:8px;resize:vertical" readonly></textarea>
+      </div>
+    </div>
+
+    <!-- クラウド同期 -->
+    <div class="export-card">
+      <div class="section-title">☁️ クラウド同期（Firebase）</div>
+      <p style="color:var(--text2);font-size:14px;line-height:1.7;margin-bottom:12px">
+        データはFirebaseに自動保存され、複数のデバイス間でリアルタイム同期されます。<br>
+        誰かが変更すると、他の人の画面にも即座に反映されます。
+      </p>
+      <div style="display:flex;gap:10px">
+        <button class="export-btn" onclick="saveToLocal()">💾 今すぐ保存</button>
+        <button class="export-btn secondary" onclick="loadFromLocal()">🔄 再読み込み</button>
+      </div>
+      <div id="saveStatus" style="margin-top:8px;font-size:14px;color:var(--text2)"></div>
+    </div>
+
+    <!-- JSON同期（詳細設定） -->
+    <div class="export-card" style="opacity:0.8">
+      <div class="section-title" style="cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        ▶ JSON同期（上級者向け・Excelが使えない場合）
+      </div>
+      <div style="display:none;margin-top:12px">
+        <p style="color:var(--text2);font-size:13px;margin-bottom:10px">PCでJSONをコピー → iPhoneで貼り付けて読み込み</p>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <button class="export-btn secondary" style="margin:0" onclick="exportJSON()">📋 JSONをコピー</button>
+          <span id="json-copy-status" style="font-size:13px;color:var(--green)"></span>
+        </div>
+        <textarea id="jsonImportArea" placeholder="JSONを貼り付けてください..."
+          style="width:100%;height:80px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:8px;resize:vertical;font-family:monospace"></textarea>
+        <button class="export-btn secondary" style="margin-top:6px" onclick="importJSON()">📥 JSONを読み込む</button>
+        <span id="json-import-status" style="font-size:13px;color:var(--green);margin-left:8px"></span>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ===== NEW EVENT MODAL ===== -->
+<div class="modal-overlay" id="newEventModal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title">＋ 新規イベント追加</div>
+    <div class="form-group">
+      <label>イベント名（例: 4/13、5月走行会）</label>
+      <input class="form-input" id="newEventName" placeholder="イベント名を入力">
+    </div>
+    <div class="form-group">
+      <label>イベント種別</label>
+      <select class="form-input" id="newEventType">
+        <option value="normal">通常（〇のみ）</option>
+        <option value="drive">走行会（①見学　②走行　③フリー走行）</option>
+        <option value="money">金額入力</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="btn-save" onclick="addNewEvent()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD MEMBER MODAL ===== -->
+<div class="modal-overlay" id="addMemberModal" style="display:none" onclick="if(event.target===this)closeAddModal()">
+  <div class="modal">
+    <div class="modal-title">＋ 新規会員追加</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>氏名 <span style="color:var(--red)">*</span></label>
+        <input class="form-input" id="add_name" placeholder="例：山田 太郎">
+      </div>
+      <div class="form-group">
+        <label>所属</label>
+        <input class="form-input" id="add_org" placeholder="例：株式会社〇〇">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>TEL</label>
+        <input class="form-input" id="add_tel" placeholder="090-0000-0000">
+      </div>
+      <div class="form-group">
+        <label>Gmail</label>
+        <input class="form-input" id="add_email" placeholder="xxx@gmail.com">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>住所</label>
+      <input class="form-input" id="add_address" placeholder="〒700-0000 岡山市...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>車種</label>
+        <input class="form-input" id="add_car" placeholder="例：ポルシェ 911">
+      </div>
+      <div class="form-group">
+        <label>紹介者</label>
+        <input class="form-input" id="add_referrer" placeholder="例：土井">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>入会</label>
+        <select class="form-input" id="add_joined">
+          <option value="">未入会</option>
+          <option value="〇">入会済（〇）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>区分</label>
+        <select class="form-input" id="add_category">
+          <option value="">なし</option>
+          <option value="発起人">発起人</option>
+          <option value="事務局">事務局</option>
+          <option value="家族会員">家族会員</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>役職</label>
+        <input class="form-input" id="add_role" placeholder="例：副会長">
+      </div>
+      <div class="form-group">
+        <label>備考</label>
+        <input class="form-input" id="add_note">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeAddModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveNewMember()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MEMBER EDIT MODAL ===== -->
+<div class="modal-overlay" id="editMemberModal" style="display:none" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal">
+    <div class="modal-title">✏️ 会員情報編集</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>氏名</label>
+        <input class="form-input" id="edit_name">
+      </div>
+      <div class="form-group">
+        <label>所属</label>
+        <input class="form-input" id="edit_org">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>TEL</label>
+        <input class="form-input" id="edit_tel">
+      </div>
+      <div class="form-group">
+        <label>Gmail</label>
+        <input class="form-input" id="edit_email">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>住所</label>
+      <input class="form-input" id="edit_address">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>車種</label>
+        <input class="form-input" id="edit_car">
+      </div>
+      <div class="form-group">
+        <label>紹介者</label>
+        <input class="form-input" id="edit_referrer">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>区分</label>
+        <select class="form-input" id="edit_category">
+          <option value="">なし</option>
+          <option value="発起人">発起人</option>
+          <option value="事務局">事務局</option>
+          <option value="家族会員">家族会員</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>役職</label>
+        <input class="form-input" id="edit_role">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>備考</label>
+      <input class="form-input" id="edit_note">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditModal()">キャンセル</button>
+      <button class="btn-save" onclick="saveEditMember()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ===== DATA =====
+let DB = {"members":[{"no":1,"name":"中西 利平","joined":"","org":"山陽地所岡崎さん紹介","category":"","role":"","referrer":"","email":"","tel":"090-3889-6291","address":"〒710-0026　岡山県倉敷市加須山875-2","car":"日産サニーＢＩＯセダン","note":"","events":{"11/20":"1","11/26":"1"}},{"no":2,"name":"上瀬 秀朗","joined":"〇","org":"居酒屋　鳥好","category":"","role":"","referrer":"吉村","email":"","tel":"086-233-5810","address":"岡山市北区本町5-8","car":"","note":"","events":{"3/262":"3","3/25":"③フリー走行"}},{"no":3,"name":"かしま いちえ","joined":"","org":"霜山さん友人","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3/262":"1"}},{"no":4,"name":"河田 敏明","joined":"","org":"","category":"","role":"","referrer":"","email":"vOoOvtoshikai@","tel":"090-6403-713","address":"〒700-0031　岡山市北区富町2丁目16-22","car":"","note":"","events":{"3/262":"3","3/25":"③フリー走行"}},{"no":5,"name":"重藤 武士","joined":"","org":"株式会社重藤組","category":"","role":"","referrer":"","email":"ajitni@butleks.com","tel":"090-1011-8811","address":"〒702-8022　岡山市南区福成3-6-22","car":"","note":"","events":{"3/25":"②先導走行"}},{"no":6,"name":"関 博文","joined":"","org":"","category":"","role":"","referrer":"","email":"h-seki@kk-actas.co.jp","tel":"090-9060-7822","address":"〒701-0143岡山市北区白石57","car":"1964","note":"","events":{"3/262":"2"}},{"no":7,"name":"岡崎 允","joined":"〇","org":"株式会社自光モータース","category":"発起人","role":"","referrer":"土井","email":"okazaki_m.j@docomo.ne.jp","tel":"090-3178-6554","address":"〒718-0015 岡山県新見市石蟹２４８−１","car":"ホンダDBA-JW5　S660","note":"※会費　2000円未　100,000円のみ入金","events":{"2/28":"×","3/14":"〇","3/30":"〇","5/12":"〇","12月7日":"〇","2月17日":"2","3月28日2":"〇","3月29日":"3","7月13日":"1","3/29　振込":"30000","中山":"〇","3/26":"〇","3/27":"3","7/262":"〇","11/20":"1","3/262":"3","11/26":"1","3/25":"③フリー走行"}},{"no":8,"name":"西山 諒","joined":"","org":"","category":"","role":"","referrer":"","email":"mnishi3913@gmail.com","tel":"080-1014-9501","address":"","car":"BMW4201","note":"","events":{"3/262":"3","3/25":"②先導走行"}},{"no":9,"name":"前山 顕司","joined":"〇","org":"有限会社ケーオー","category":"","role":"","referrer":"","email":"k.maeyama@ko.ltd.jp","tel":"090-1598-0290","address":"〒562-0032　大阪府箕面市小野原西町5丁目7-31","car":"","note":"","events":{"3/262":"2","3/25":"③フリー走行"}},{"no":10,"name":"岡崎 秀紀","joined":"〇","org":"山陽地所株式会社","category":"","role":"","referrer":"土井","email":"h-okazaki@sanyo-jisho.com","tel":"086-943-7797","address":"〒704-8114　岡山市東区西大寺東3-7-16","car":"KB110サニークーペ","note":"","events":{"3/14":"×","3/30":"〇","12月7日":"〇","3月29日":"3","3/29　入金":"30000","中山":"〇","3/27":"3","11/20":"1","3/262":"3","11/26":"1","3/25":"③フリー走行"}},{"no":11,"name":"阿部","joined":"","org":"岡崎允会長紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1","3/29　振込":"5000"}},{"no":12,"name":"逢沢 俊枝","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"090-3378-2999","address":"〒700-0933岡山市北区奥田1-2-3あいさわ一郎事務所","car":"","note":"","events":{"12月7日":"〇","3月29日":"×"}},{"no":13,"name":"安原 啓二","joined":"","org":"有限会社安原建築","category":"","role":"","referrer":"土井","email":"","tel":"","address":"〒713-8121　岡山県倉敷市玉島阿賀崎1948","car":"","note":"","events":{"3/14":"〇","3月29日":"×"}},{"no":14,"name":"安倉 武義","joined":"〇","org":"","category":"","role":"","referrer":"土井","email":"orm39208@gmail.com","tel":"090-5698-9232","address":"〒704-8191岡山市東区西大寺仲野489-8","car":"ポルシェ 992 カレラS","note":"会費のみ入金　参加費5000円未","events":{"3/29":"3","3/25":"③フリー走行"}},{"no":15,"name":"衣笠 哲也","joined":"","org":"岡山理科大学工学部","category":"","role":"","referrer":"難波","email":"","tel":"","address":"〒700-0005 岡山県岡山市北区理大町１−１","car":"","note":"","events":{"3/14":"×"}},{"no":16,"name":"奥 明栄","joined":"","org":"東レ・カーボンマジック株式会社","category":"","role":"","referrer":"戸田","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"×"}},{"no":17,"name":"奥田 真子","joined":"〇","org":"株式会社カナオカワールド","category":"","role":"","referrer":"","email":"","tel":"086-995-1618","address":"〒709-0721岡山県赤磐市桜が丘5丁目5-363","car":"","note":"","events":{"12月7日":"〇","2月17日":"1","3月28日2":"〇","3月29日":"1","7月13日":"1","3/29　入金":"23000","2023　会費":"2000","2024　会費":"1","中山":"〇","7/262":"〇","3/262":"1"}},{"no":18,"name":"奥野 一三","joined":"","org":"株式会社奥野組","category":"","role":"","referrer":"土井","email":"okuno13@gmail.com","tel":"090-1689-8657","address":"〒700-0803　岡山市北区北方1-1-6","car":"トヨタDAA-ZYX10","note":"","events":{"3月29日":"3","3/29　入金":"30000","2023　会費":"2000"}},{"no":19,"name":"横山 光彦","joined":"","org":"よこやま腎泌尿器科クリニック","category":"","role":"","referrer":"土井","email":"uroyokoyama@gmail.com","tel":"090-7975-1677","address":"〒703-8208岡山市北区今2-7-1","car":"ベンツＣ","note":"","events":{"2023　会費":"2000","3/27":"3"}},{"no":20,"name":"古谷野 治男","joined":"","org":"株式会社古谷野コーポレーション","category":"","role":"","referrer":"土井","email":"","tel":"","address":"〒710-0801 岡山県倉敷市酒津２４９９−６","car":"","note":"","events":{"3/14":"×","3月29日":"3","3/29　入金":"30000","3/27":"3","11/20":"1","3/262":"1","11/26":"1"}},{"no":21,"name":"佐々木 秀臣","joined":"〇","org":"株式会社佐々木組","category":"","role":"","referrer":"土井","email":"omi0201@gmail.com","tel":"090-3177-1464","address":"〒718-005岡山県新見市上市1149-1","car":"E-F355B","note":"","events":{"3/14":"〇","3/30":"〇","12月7日":"〇","2月17日":"1","3月29日":"2","3/29　入金":"20000","3/27":"3","3/262":"2","3/25":"②先導走行"}},{"no":22,"name":"岡崎 令子","joined":"","org":"株式会社自光モータース","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"7/262":"〇"}},{"no":23,"name":"岡本 陽一","joined":"","org":"岡本製甲株式会社","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒710-1101 岡山県倉敷市茶屋町１９８８−１２","car":"","note":"","events":{"3/14":"〇","5/12":"×","3月29日":"×"}},{"no":24,"name":"仮谷 寛志","joined":"","org":"山陽新聞社","category":"","role":"","referrer":"","email":"","tel":"090-4103-2770","address":"","car":"","note":"","events":{"12月7日":"〇","3月29日":"×"}},{"no":25,"name":"花房 英孝","joined":"","org":"ハナフサデンタルクリニック","category":"発起人","role":"","referrer":"土井","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"×","3/29":"〇","3/30":"〇","3月29日":"×"}},{"no":26,"name":"亀山 裕汰","joined":"","org":"古谷野さん紹介","category":"","role":"","referrer":"","email":"ykameyama50@gmail.com","tel":"080-3052-1528","address":"〒719-1155　岡山県総社市小寺16-16","car":"S2000","note":"","events":{"3/27":"3","11/20":"2","3/262":"3"}},{"no":27,"name":"吉岡 修一","joined":"","org":"古代体験の郷　まほろば","category":"","role":"","referrer":"那須","email":"shu1237@gmail.com","tel":"090-4698-1237","address":"","car":"ランドクルーザー","note":"","events":{"3月29日":"3","3/25":"①見学"}},{"no":28,"name":"吉村 充司","joined":"","org":"ウエストジャパン興業株式会社","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"HONDA NSX E-NA1","note":"","events":{"3/27":"3","3/262":"3","11/26":"1"}},{"no":29,"name":"星野 謙治","joined":"〇","org":"星野商事株式会社","category":"","role":"","referrer":"","email":"","tel":"090-1183-8333","address":"〒721-0963広島県福山市南牛城町3-14-8","car":"ポルシェ　911","note":"","events":{"11/20":"1","3/262":"3","11/26":"1","3/25":"③フリー走行"}},{"no":30,"name":"橋本","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1"}},{"no":31,"name":"霜山  一智","joined":"","org":"テップモータースポーツ","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"トヨタ200GT","note":"会費　2000円未　参加費10000円のみ入金","events":{"3/14":"×","3/30":"〇","3月29日":"3","3/29　振込":"30000","中山":"〇","3/27":"3","11/20":"1","3/262":"3","11/26":"1"}},{"no":32,"name":"戸田 憲吾","joined":"〇","org":"株式会社戸田レーシング","category":"","role":"","referrer":"戸田","email":"kengo_toda@toda-racing.co.jp","tel":"080-8986-7943","address":"〒714-1215 岡山県小田郡矢掛町中６４０−１","car":"S2000","note":"走行費用または一般参加費用？","events":{"3/14":"〇","3/30":"〇","3月29日":"3"}},{"no":33,"name":"戸田 幸男","joined":"〇","org":"株式会社戸田レーシング","category":"発起人","role":"会長","referrer":"戸田","email":"yukio.power2@gmail.com","tel":"090-3175-8503","address":"〒714-1215 岡山県小田郡矢掛町中６４０−１","car":"","note":"","events":{"2/28":"〇","3/14":"〇","3/29":"〇","3/30":"〇","9/13":"1","9/13泊":"1","12月7日":"〇","2月17日":"1","3月28日2":"〇","3月29日":"1","3/29　入金":"18000","2024　会費":"1","中山":"〇","3/26":"〇","3/27":"1","7/262":"〇","3/262":"1","11/26":"2","3/25":"①見学"}},{"no":34,"name":"戸田レーシング①","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"〒714-1215 岡山県小田郡矢掛町中６４０−１","car":"","note":"","events":{"3月29日":"1"}},{"no":35,"name":"戸田レーシング②","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"〒714-1215 岡山県小田郡矢掛町中６４０−１","car":"","note":"","events":{"3月29日":"1"}},{"no":36,"name":"戸田レーシング③","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"〒714-1215 岡山県小田郡矢掛町中６４０−１","car":"","note":"","events":{"3月29日":"1"}},{"no":37,"name":"戸田レーシング④","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"〒714-1215 岡山県小田郡矢掛町中６４０−１","car":"","note":"","events":{"3月29日":"1"}},{"no":38,"name":"幸野 源","joined":"","org":"株式会社岡山マツダ","category":"","role":"","referrer":"石川","email":"kouno.h@okayama-mazda.co.jp","tel":"090-5704-1235","address":"〒700-0971 岡山県岡山市北区野田４丁目１４−２０ 岡山マツダ","car":"","note":"","events":{"3/14":"×","3月29日":"×"}},{"no":39,"name":"広瀬","joined":"","org":"岡崎允会長紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月28日2":"〇","3月29日":"1","3/29　振込":"5000"}},{"no":40,"name":"高崎 保浩","joined":"","org":"Star5スターファイブ","category":"","role":"","referrer":"戸田","email":"","tel":"","address":"〒674-0067　兵庫県明石市大久保町680-9","car":"","note":"会費　2000円未　参加費5000円のみ入金","events":{"3/14":"〇","3/30":"〇","3月29日":"1","3/27":"1","3/262":"1","3/25":"①見学"}},{"no":41,"name":"高田 さゆり","joined":"","org":"岡山シーガルズ","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3/27":"1"}},{"no":42,"name":"土井 雅人","joined":"〇","org":"テレビせとうち株式会社","category":"発起人","role":"副会長","referrer":"土井","email":"sanyou.doi@gmail.com","tel":"090-1331-0416","address":"〒700-0904 岡山県岡山市北区柳町２丁目１−１","car":"フェラーリー330P4","note":"","events":{"2/28":"〇","3/14":"〇","3/29":"〇","3/30":"〇","5/12":"〇","9/13":"1","9/13泊":"1","12月7日":"〇","2月17日":"1","3月28日2":"〇","3月29日":"2","7月13日":"1","2024　会費":"1","3/26":"〇","3/27":"1","7/262":"〇","11/20":"1","3/262":"2","11/26":"1","3/25":"②先導走行"}},{"no":43,"name":"高木さん奥様","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3/27":"1"}},{"no":44,"name":"那須 啓文","joined":"〇","org":"Fukiya　design.","category":"","role":"","referrer":"","email":"nike68@true.ocn.ne.jp","tel":"090-4141-1883","address":"〒710-0026岡山県倉敷市加須山３２７-１０","car":"TOYOTA  TA22","note":"","events":{"9/13":"1","9/13泊":"1","12月7日":"〇","2月17日":"1","3月29日":"3","中山":"〇","3/27":"3","11/20":"2","3/262":"3","11/26":"1","3/25":"③フリー走行"}},{"no":45,"name":"佐田 時信","joined":"","org":"株式会社佐田建美","category":"","role":"","referrer":"土井","email":"","tel":"","address":"〒719-3155 岡山県真庭市下方８６３−１","car":"GTR","note":"","events":{"3/14":"〇","12月7日":"〇"}},{"no":46,"name":"佐藤 英明","joined":"〇","org":"株式会社日建","category":"発起人","role":"","referrer":"土井","email":"hideaki@mx3.tiki.ne.jp","tel":"090-4656-0080","address":"〒700-0945 岡山県岡山市南区新保６６６−７","car":"ポルシェ356","note":"会費　2000円未　100,000円のみ入金","events":{"2/28":"〇","3/14":"〇","3/30":"〇","5/12":"〇","3月29日":"1","7月13日":"1","3/29　入金":"5000","2023　会費":"2000","3/262":"2","3/25":"③フリー走行"}},{"no":47,"name":"佐藤 義寛","joined":"","org":"ハートアップワールド","category":"","role":"","referrer":"","email":"","tel":"090-8069-0969","address":"岡山市北区建部町川口1520-1","car":"","note":"","events":{"12月7日":"〇","3月29日":"×"}},{"no":48,"name":"三宅 貴仁","joined":"〇","org":"三宅医院","category":"発起人","role":"","referrer":"本郷","email":"takahitomiyake@gmail.com","tel":"086-282-7532","address":"〒701-0204 岡山県岡山市南区大福３６９−８","car":"ポルシェ911GT3","note":"","events":{"2/28":"〇","3/14":"〇","3/30":"〇","5/12":"〇","3月29日":"3","3/27":"3","3/25":"③フリー走行"}},{"no":49,"name":"三宅 範尚","joined":"","org":"テレビせとうち株式会社","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"〇","3月29日":"×"}},{"no":50,"name":"山本 雅史","joined":"","org":"MASAコンサルティング・コミュニケーションズ株式会社","category":"","role":"","referrer":"戸田","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"×","7月13日":"1"}},{"no":51,"name":"山本 俊政","joined":"","org":"学校法人　加計学園　岡山理科大学","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒700-0005 岡山県岡山市北区理大町１−１","car":"","note":"","events":{"3/14":"〇","3/30":"〇","3月29日":"×"}},{"no":52,"name":"山本 卓二","joined":"","org":"コアテック株式会社","category":"","role":"","referrer":"","email":"","tel":"080-6319-2877","address":"〒719-1121 岡山県総社市赤浜５００","car":"eFalcon","note":"","events":{"3月29日":"2"}},{"no":53,"name":"山本 篤憲","joined":"","org":"株式会社アリオンシステム","category":"","role":"","referrer":"戸田","email":"t.yamamoto@alion88.com","tel":"080-3669-4001","address":"〒700-0904 岡山県岡山市北区柳町２丁目4-23　プレジデント山忠ビル9階","car":"","note":"","events":{"3/14":"〇","3月29日":"×"}},{"no":54,"name":"寺沢","joined":"","org":"山陽新聞グループ","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1"}},{"no":55,"name":"室山 晃一","joined":"","org":"山陽美業株式会社","category":"","role":"","referrer":"土井","email":"gev17321@sanyobigyo.jp","tel":"090-3054-6867","address":"〒710-0826 岡山県倉敷市老松町２丁目１３−３０ サントップ","car":"","note":"現金にて","events":{"3/14":"〇"}},{"no":56,"name":"秋山 尚巳","joined":"","org":"コアテック株式会社","category":"","role":"","referrer":"戸田","email":"","tel":"","address":"〒719-1121 岡山県総社市赤浜５００","car":"","note":"","events":{"3月29日":"1"}},{"no":57,"name":"秋山 雄亮","joined":"","org":"株式会社岡山国際サーキット","category":"","role":"","referrer":"島内","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"〇"}},{"no":58,"name":"秋田 博志","joined":"〇","org":"岡山県県民生活協同組合","category":"","role":"","referrer":"","email":"h.akita@okayamakenminkyosai.or.jp","tel":"090-6415-2531","address":"〒703-8258岡山県岡山市中区西川原342-1-101","car":"","note":"","events":{"12月7日":"〇"}},{"no":59,"name":"福島 章","joined":"〇","org":"有限会社西方オート","category":"","role":"","referrer":"土井","email":"nisigata@ibara.ne.jp","tel":"090-3178-9717","address":"〒715-0015 岡山県井原市西方町１４４０−１","car":"ブルーバード510","note":"5000円返金済み　※多く振り込まれていた","events":{"3/14":"〇","3月29日":"3","3/29　入金":"30000","中山":"〇","3/27":"3","11/20":"1","3/262":"3","11/26":"1","3/25":"③フリー走行"}},{"no":60,"name":"小田 高広","joined":"〇","org":"岡山県民共済生活協同組合","category":"","role":"","referrer":"土井","email":"","tel":"090-4140-1195","address":"〒703-8217岡山県岡山市中区土田706-12","car":"","note":"他入会者　4名あり","events":{"3/14":"〇","3/30":"×","5/12":"〇","12月7日":"〇","3月29日":"1","7月13日":"1","3/29　入金":"5000","2023　会費":"2000","3/262":"1","3/25":"①見学"}},{"no":61,"name":"松浦 広司","joined":"〇","org":"株式会社カートップ","category":"","role":"","referrer":"佐藤","email":"matsuura@cartop.co.jp","tel":"090-3178-1091","address":"〒700-0941岡山県岡山市南区青江6-3-8","car":"ジャガ-SK120","note":"会費　2000円未　参加費5000円のみ入金","events":{"5/12":"〇","12月7日":"〇","7月13日":"1"}},{"no":62,"name":"松田 典久","joined":"","org":"両備ホールディングス","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒700-0907 岡山県岡山市北区下石井２丁目１０","car":"","note":"代理で向井　明様出席","events":{"3/14":"〇","5/12":"〇","3月29日":"×"}},{"no":63,"name":"松尾 浩紀","joined":"","org":"ダイヤ工業株式会社","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒701-0203 岡山県岡山市南区古新田１１２５","car":"","note":"","events":{"3/14":"×","3/29":"×","3/30":"×","3月29日":"×"}},{"no":64,"name":"松本 俊成","joined":"〇","org":"内海産業株式会社","category":"","role":"","referrer":"山陽地所岡崎","email":"t-matsumoto@naikai-industry.com","tel":"090-1010-2138","address":"〒704-8112岡山県岡山市東区西大寺上1丁目20-15","car":"","note":"山陽地所　岡崎社長より紹介","events":{"11/20":"1"}},{"no":65,"name":"上條 智子","joined":"","org":"株式会社岡山髙島屋","category":"","role":"","referrer":"石川","email":"","tel":"090-5017-8493","address":"〒700-8520 岡山県岡山市北区本町６−４０","car":"","note":"","events":{"3/14":"×","3月29日":"×"}},{"no":66,"name":"常木 尚孝","joined":"","org":"全日本空輸株式会社","category":"","role":"","referrer":"石川","email":"","tel":"","address":"","car":"","note":"","events":{"3/30":"×","5/12":"×","3月29日":"×"}},{"no":67,"name":"新田 顕一郎","joined":"〇","org":"株式会社フレシャン","category":"","role":"","referrer":"土井","email":"nitta_kenichiro@yahoo.co.jp","tel":"090-8361-1000","address":"〒700-0821岡山県岡山市中山下1丁目10-10","car":"アストンマーティン","note":"","events":{"3/14":"〇","3/30":"〇","12月7日":"〇","3月29日":"×"}},{"no":68,"name":"深野","joined":"","org":"日本経済新聞社","category":"","role":"","referrer":"","email":"","tel":"080-8128-3978","address":"","car":"","note":"","events":{"12月7日":"〇","3月29日":"×"}},{"no":69,"name":"須増  哲也","joined":"","org":"コアテック株式会社","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"プリウスＡプレミアム","note":"","events":{"3/26":"〇","3/27":"2","7/262":"〇"}},{"no":70,"name":"杉浦 隆浩","joined":"","org":"株式会社岡山国際サーキット","category":"","role":"","referrer":"島内","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"〇"}},{"no":71,"name":"絹輪 晴弘","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"ポルシェケイマン","note":"","events":{"3/262":"3","11/26":"1"}},{"no":72,"name":"清水 富江","joined":"〇","org":"備前化成株式会社","category":"","role":"","referrer":"石川","email":"tomie.kazuya.0218@docomo.ne.jp","tel":"090-2156-4900","address":"〒709-0716 岡山県赤磐市徳富363","car":"","note":"","events":{"3/14":"〇","3/29":"〇","3/30":"〇","5/12":"〇","9/13":"1","9/13泊":"1","12月7日":"〇","2月17日":"1","3月28日2":"〇","3月29日":"1","7月13日":"1","3/29　入金":"23000","2023　会費":"2000","2024　会費":"1","3/262":"1"}},{"no":73,"name":"生本 尚久","joined":"","org":"みのる産業株式会社","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"12月7日":"〇","2月17日":"1","7月13日":"1"}},{"no":74,"name":"西山 尚恵","joined":"","org":"西山　勝さん奥様","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3/262":"1","3/25":"①見学"}},{"no":75,"name":"西山 勝","joined":"","org":"有限会社西山工務店","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"ポルシェ911","note":"","events":{"3/14":"×","3/30":"×","3月29日":"×","3/262":"3","3/25":"②先導走行"}},{"no":76,"name":"石水 優夢","joined":"","org":"吉村さん紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3/27":"1","3/262":"1"}},{"no":77,"name":"藤井 幸弘","joined":"","org":"福島さん紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"11/26":"1"}},{"no":78,"name":"千神 圭介","joined":"〇","org":"岡山県県民生活協同組合","category":"","role":"","referrer":"","email":"chigami_69@yahoo.co.jp","tel":"090-5671-0702","address":"〒709-1134岡山県総社市駅南1-7-2","car":"","note":"","events":{"12月7日":"〇"}},{"no":79,"name":"川井 雄之介","joined":"","org":"株式会社クレスコ","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒709-0625 岡山県岡山市東区上道北方１６５","car":"","note":"","events":{"3/14":"〇","3/30":"×","3月29日":"×"}},{"no":80,"name":"川上 宗一","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"12月7日":"〇"}},{"no":81,"name":"浅野 泰三","joined":"","org":"株式会社浅野材木店","category":"","role":"","referrer":"土井","email":"","tel":"","address":"〒710-1315 岡山県倉敷市真備町上二万７７４","car":"","note":"","events":{"3/14":"×"}},{"no":82,"name":"曽我部 雅子","joined":"","org":"石川紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1","3/29　振込":"5000"}},{"no":83,"name":"いぬかい","joined":"","org":"霜山さん友人","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3/262":"1","11/26":"2"}},{"no":84,"name":"太田 哲二","joined":"〇","org":"セイテック株式会社","category":"","role":"","referrer":"土井","email":"JZB00165@nifty.ne.jp","tel":"080-3881-1617","address":"","car":"Guria 1967","note":"","events":{"3/14":"〇","3/30":"〇","3/262":"1"}},{"no":85,"name":"大森 将沙義","joined":"","org":"株式会社セブンラベル","category":"","role":"","referrer":"","email":"","tel":"","address":"〒702-8032 岡山県岡山市南区福富中1-5-6","car":"","note":"","events":{"5/12":"〇"}},{"no":86,"name":"大森 繁幸","joined":"〇","org":"総社タイヤ株式会社","category":"","role":"","referrer":"土井","email":"","tel":"090-4897-5300","address":"〒719-1135 岡山県総社市溝口１１６−１","car":"","note":"","events":{"3/14":"〇"}},{"no":87,"name":"大西 直規","joined":"〇","org":"株式会社フルーツ　ジャパン","category":"","role":"","referrer":"","email":"Ohnishi@umaina.co.jp","tel":"080-4066-8001","address":"岡山市中区原尾島875-1 原尾島オフィス","car":"","note":"","events":{"2月17日":"1","3月29日":"×"}},{"no":88,"name":"大前 充生","joined":"〇","org":"株式会社ダックス","category":"","role":"","referrer":"土井","email":"m_one_auto@yahoo.co.jp","tel":"090-1327-0010","address":"〒767-0011 香川県三豊市高瀬町下勝間１６４３−３","car":"","note":"","events":{"3/14":"〇"}},{"no":89,"name":"大平 正臣","joined":"〇","org":"岡山県県民生活協同組合","category":"","role":"","referrer":"","email":"evergreen.masaomi-1122@docomo.ne.jp","tel":"090-7995-9646","address":"〒703-8221岡山県岡山市中区長岡67-31-201","car":"","note":"","events":{"12月7日":"〇"}},{"no":90,"name":"竹島 祐輔","joined":"","org":"岡山県県民生活協同組合","category":"","role":"","referrer":"","email":"takeshima_1031@yahoo.ne.jp","tel":"080-1944-6294","address":"〒702-8027岡山県岡山市南区芳泉4丁目6-36-7","car":"","note":"","events":{}},{"no":91,"name":"中原 健一","joined":"〇","org":"株式会社中原製作所","category":"発起人","role":"","referrer":"石川","email":"sakura@nkhr.com","tel":"090-3177-3280","address":"〒703-8228 岡山県岡山市中区乙多見４６３ 中原製作所","car":"","note":"","events":{"2/28":"〇","3/14":"×","3/30":"×","9/13":"1","3月29日":"×","7月13日":"1"}},{"no":92,"name":"中山 憲太郎","joined":"","org":"有限会社中山靴店","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒700-0822 岡山県岡山市北区表町２丁目２−７７","car":"","note":"","events":{"3/14":"×","3/30":"×","9/13":"1","9/13泊":"1","3月29日":"×"}},{"no":93,"name":"中村 宏","joined":"","org":"山陽地所岡崎さん紹介","category":"","role":"","referrer":"","email":"","tel":"090-1331-7023","address":"〒719-0221　岡山県浅口市金光町下村737","car":"ミニレーシングＮＯ.89","note":"","events":{"11/20":"1"}},{"no":94,"name":"中村 映一郎","joined":"","org":"株式会社山陽新聞社","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"","note":"事務局扱い","events":{"3/14":"〇","12月7日":"〇","3月29日":"1","3/27":"1","3/262":"1"}},{"no":95,"name":"中塚 黄海","joined":"","org":"ブティックアッズーロ","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"×","3/30":"×","3月29日":"×"}},{"no":96,"name":"長谷川 朋久","joined":"","org":"岡山県県民生活協同組合","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"12月7日":"〇"}},{"no":97,"name":"田原 隆盛","joined":"","org":"新見ガス株式会社","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"×","3/30":"〇"}},{"no":98,"name":"田中 健裕","joined":"","org":"タイメック株式会社","category":"","role":"","referrer":"","email":"takehiro@timek.coo.jp","tel":"090-4579-2285","address":"〒719-1176岡山県総社市清音柿木613-1","car":"","note":"","events":{"9/13":"1","9/13泊":"1","3月29日":"×"}},{"no":99,"name":"田辺 健二","joined":"","org":"東京海上日動火災保険株式会社","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒700-0904 岡山県岡山市北区柳町２丁目１１−１９ 岡山東京海上日勤ビル","car":"","note":"","events":{"3/14":"〇","3/29":"×","3/30":"×","5/12":"〇","3月29日":"×"}},{"no":100,"name":"渡辺 鉄平","joined":"〇","org":"株式会社日圧機販","category":"発起人","role":"","referrer":"石川","email":"teppei@nichiatsukihan.co.jp","tel":"090-5950-8712","address":"〒701-0221 岡山県岡山市南区藤田２２１３−２ 日圧機販","car":"","note":"会費　2000円未　100,000円のみ入金","events":{"2/28":"〇","3/14":"×","3/29":"×","3/30":"〇","5/12":"×","9/13":"1","3月29日":"×","7月13日":"1"}},{"no":101,"name":"山村 一","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"090-4574-7028","address":"〒701-1205岡山市北区佐山1228-11","car":"スバルクロストレック","note":"","events":{"3/262":"3","11/26":"2"}},{"no":102,"name":"島内 洋和","joined":"","org":"テレビせとうち株式会社","category":"事務局","role":"事務局","referrer":"島内","email":"shimauchi11@gmail.com","tel":"","address":"","car":"","note":"","events":{"2/28":"〇","3/14":"〇","3/30":"〇","3月29日":"×"}},{"no":103,"name":"藤井 鉄郎","joined":"","org":"玉島テレビ放送株式会社","category":"発起人","role":"","referrer":"土井","email":"tfujii@mx1.tamatele.ne.jp","tel":"090-3173-1622","address":"〒710-0253岡山県倉敷市新倉敷駅前5-80","car":"フェラーリー　ポルトフィーノ","note":"","events":{"3/14":"×","3/30":"〇","2月17日":"1","3月29日":"3","3/29　振込":"40000","2024　会費":"1","3/27":"3","7/262":"〇","3/262":"3","3/25":"③フリー走行"}},{"no":104,"name":"藤井 八重","joined":"","org":"玉島テレビ放送株式会社","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"2024　会費":"1","7/262":"〇"}},{"no":105,"name":"藤井 茂","joined":"〇","org":"コアテック株式会社","category":"発起人","role":"","referrer":"戸田","email":"s-fujii@coretec.co.jp","tel":"080-3873-6776","address":"〒719-1121 岡山県総社市赤浜５００","car":"CORVETTEC7","note":"","events":{"2/28":"×","3/14":"〇","3/29":"〇","3/30":"〇","5/12":"×","9/13":"2","9/13泊":"2","12月7日":"〇","2月17日":"1","3月28日2":"〇","3月29日":"3","7月13日":"1","3/29　入金":"18000","2024　会費":"1","3/26":"〇","3/27":"2","7/262":"〇","3/262":"1","3/25":"①見学"}},{"no":106,"name":"藤岡 孝","joined":"〇","org":"株式会社吉備ケーブルテレビ","category":"発起人","role":"","referrer":"土井","email":"kbc4800@kibimaru.tv","tel":"090-8995-9537","address":"〒716-0061 岡山県高梁市落合町１７６８−５","car":"アストンマーチンＤＢ12","note":"※会費　2000円未　100,000円のみ入金","events":{"2/28":"×","3/14":"〇","3/30":"〇","5/12":"〇","2月17日":"1","3月29日":"2","7月13日":"1","3/29　振込":"25000","3/29　入金":"25000","2024　会費":"1","中山":"〇","3/27":"3","7/262":"〇","3/262":"3","3/25":"③フリー走行"}},{"no":107,"name":"藤岡 由理子","joined":"〇","org":"株式会社吉備ケーブルテレビ","category":"","role":"","referrer":"土井","email":"","tel":"","address":"〒716-0061 岡山県高梁市落合町１７６８−５","car":"","note":"","events":{"3/14":"×","3/30":"〇","3月29日":"×","7月13日":"1","2024　会費":"1","中山":"〇","3/27":"1","7/262":"〇","3/262":"1","3/25":"①見学"}},{"no":108,"name":"吉田 泰之","joined":"〇","org":"エムテック株式会社","category":"発起人","role":"","referrer":"土井","email":"yoshida@m-tec.co.jp","tel":"090-4894-0025","address":"〒704-8124岡山県岡山市東区西大寺五明429-6","car":"","note":"会費　2000円未　100,000円のみ入金","events":{"3/14":"〇","3/29":"〇","3/30":"〇","12月7日":"〇","2月17日":"1","3月29日":"2","3/29　振込":"25000","2024　会費":"1","3/262":"1","11/26":"2"}},{"no":109,"name":"難波","joined":"","org":"岡崎允会長紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1","3/29　振込":"5000"}},{"no":110,"name":"難波 圭太郎","joined":"〇","org":"オーエム産業株式会社","category":"発起人","role":"","referrer":"石川","email":"namba@oms.co.jp","tel":"090-7892-2831","address":"〒700-0971 岡山県岡山市北区野田３丁目１８−４８","car":"CBA-CZ4A","note":"","events":{"2/28":"〇","3/14":"〇","3/29":"〇","3/30":"〇","5/12":"×","9/13":"3","9/13泊":"1","2月17日":"湯浅　誠二、宮本　直輝","3月29日":"×","7月13日":"1"}},{"no":111,"name":"白髭 千晴","joined":"","org":"コクヨ山陽四国販売株式会社","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒700-0826 岡山県岡山市北区磨屋町３","car":"","note":"","events":{"3/14":"〇","3月29日":"×"}},{"no":112,"name":"畑 義継","joined":"","org":"株式会社岡山国際サーキット","category":"","role":"","referrer":"島内","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"〇"}},{"no":113,"name":"畑島 美緒","joined":"〇","org":"金田コーポレーション株式会社","category":"","role":"","referrer":"石川","email":"hatashima@kaneda-co.net","tel":"090-8958-3156","address":"〒706-0001 岡山県玉野市田井６丁目７−６","car":"","note":"現金にて","events":{"3/14":"〇","3/29":"〇","3/30":"〇","5/12":"×","9/13":"1","9/13泊":"1","12月7日":"〇","2月17日":"1","3月28日2":"〇","3月29日":"1","3/29　入金":"23000","2023　会費":"2000"}},{"no":114,"name":"武田","joined":"","org":"テレビせとうち株式会社","category":"事務局","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"事務局扱い","events":{"12月7日":"〇","3月29日":"1","3/27":"1","3/262":"1"}},{"no":115,"name":"高木 達也","joined":"","org":"株式会社19","category":"","role":"","referrer":"","email":"t.ta62acces@m2.dion.ne.jp","tel":"090-4803-6156","address":"〒700-0975　岡山市北区今3丁目13-1アルファスライツ今3丁目公園405","car":"","note":"","events":{"12月7日":"〇","3月29日":"×","3/27":"1","3/25":"①見学"}},{"no":116,"name":"福嶋 裕美子","joined":"〇","org":"学校法人福嶋学園","category":"発起人","role":"","referrer":"石川","email":"","tel":"090-1684-3140","address":"〒710-0051 岡山県倉敷市幸町１２−３ 倉敷リハビリテーション学院","car":"","note":"","events":{"3/14":"〇","3/29":"〇","3/30":"〇","5/12":"〇","9/13":"1","9/13泊":"1","12月7日":"〇","3月29日":"×"}},{"no":117,"name":"兵頭 淳","joined":"","org":"株式会社東京R&D","category":"","role":"","referrer":"戸田","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"×"}},{"no":118,"name":"片岡 俊則","joined":"","org":"株式会社戸田レーシング","category":"","role":"","referrer":"","email":"kataoka@toda-racing.co.jp","tel":"090-1352-4173","address":"〒714-1215 岡山県小田郡矢掛町中６４０−１","car":"ポルシェBoxster","note":"","events":{"12月7日":"〇","3月29日":"3","3/29　振込":"25000","3/29　入金":"5000","3/27":"1"}},{"no":119,"name":"北原 忠","joined":"〇","org":"株式会社北原産業","category":"","role":"","referrer":"土井","email":"tk@starpack.co.jp","tel":"090-3378-9329","address":"〒710-0253 岡山県倉敷市新倉敷駅前５丁目１４１ 北原産業本社ビル","car":"","note":"","events":{"3/14":"〇","12月7日":"〇"}},{"no":120,"name":"本郷 旬","joined":"〇","org":"セリオ株式会社","category":"発起人","role":"副会長","referrer":"本郷","email":"hon0128@gmail.com","tel":"086-230-0280","address":"〒703-8235　岡山県岡山市中区原尾島３丁目１６−４","car":"ポルシェ911　カレラ","note":"","events":{"2/28":"〇","3/14":"〇","3/29":"〇","3/30":"〇","5/12":"〇","9/13":"1","9/13泊":"1","12月7日":"〇","3月29日":"3","7月13日":"1","3/27":"3","3/262":"3","3/25":"③フリー走行"}},{"no":121,"name":"本郷 由美","joined":"","org":"本郷さん奥様","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3/27":"1","3/262":"1","3/25":"①見学"}},{"no":122,"name":"野田 令","joined":"","org":"株式会社デンショク","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"×"}},{"no":123,"name":"有利 ①","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1","3/29　入金":"5000"}},{"no":124,"name":"有利 ②","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1","3/29　入金":"5000"}},{"no":125,"name":"有利 ③","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1","3/29　入金":"5000"}},{"no":126,"name":"有利 ④","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"3月29日":"1","3/29　入金":"5000"}},{"no":127,"name":"有利 徹","joined":"","org":"平和タクシー","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"","note":"","events":{"3/14":"〇","3/30":"〇","12月7日":"〇","3月29日":"1","3/29　入金":"5000"}},{"no":128,"name":"和気 泉","joined":"〇","org":"三和ホールディングス","category":"発起人","role":"","referrer":"土井","email":"ceowake@sanwa-hd.co.jp","tel":"086-222-0111","address":"〒702-8027岡山県岡山市南区芳泉4丁目6-36-7","car":"ベンツ","note":"※会費　2000円未　100,000円のみ入金","events":{"3/14":"〇","3/29":"〇","3/30":"〇","12月7日":"〇","3月29日":"×"}},{"no":129,"name":"藥袋 俊也","joined":"","org":"東京海上日動火災保険株式会社","category":"","role":"","referrer":"石川","email":"","tel":"","address":"〒700-0904 岡山県岡山市北区柳町２丁目１１−１９ 岡山東京海上日勤ビル","car":"","note":"","events":{"3/14":"〇","3/29":"×"}},{"no":130,"name":"髙尾 長典","joined":"","org":"","category":"","role":"","referrer":"土井","email":"","tel":"","address":"","car":"フォードアメリカングラフティクーペ","note":"","events":{"3/14":"×","3月29日":"1","3/29　入金":"5000","2023　会費":"2000","3/27":"1"}},{"no":131,"name":"小河原 典永","joined":"","org":"カーショップ　チェック","category":"","role":"","referrer":"岡崎秀","email":"","tel":"090-7130-8223","address":"〒710-0844　倉敷市福井348","car":"","note":"","events":{"3月29日":"1","3/29　入金":"5000","3/27":"1","11/20":"2","3/262":"1","11/26":"2"}},{"no":132,"name":"本古谷 博","joined":"","org":"亀山さん知人","category":"","role":"","referrer":"","email":"ferrari.164.fl@gmail.com","tel":"090-8990-0192","address":"〒729-0112広島県福山市神村町2190","car":"","note":"","events":{"3/262":"3"}},{"no":133,"name":"石川 三千代","joined":"〇","org":"ホテルグランヴィア岡山","category":"事務局","role":"事務局　会計","referrer":"石川","email":"rinranyou@gmail.com","tel":"090-9509-1941","address":"〒700-8515 岡山県岡山市北区駅元町１−５","car":"","note":"","events":{"2/28":"〇","3/14":"〇","3/29":"〇","3/30":"〇","5/12":"〇","9/13":"1","9/13泊":"1","12月7日":"〇","2月17日":"1","3月28日2":"〇","3月29日":"1","7月13日":"1","2024　会費":"1","中山":"〇","3/26":"〇","3/27":"1","7/262":"〇","11/20":"2","3/262":"1","11/26":"2","3/25":"①見学"}},{"no":134,"name":"山村 一 息子さん","joined":"","org":"古谷野さん紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"11/26":"2"}},{"no":135,"name":"チェック メカニック①","joined":"","org":"岡﨑さん紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"11/26":"2"}},{"no":136,"name":"亀山","joined":"","org":"古谷野さん紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"11/26":"1"}},{"no":137,"name":"コーディー","joined":"","org":"吉村さん紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"11/26":"2"}},{"no":138,"name":"チェック メカニック②","joined":"","org":"岡﨑さん紹介","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"","events":{"11/26":"2"}},{"no":139,"name":"亀山 綱夫","joined":"","org":"","category":"","role":"","referrer":"","email":"kamet81jp@yahoo.co.jp","tel":"090-1019-7970","address":"〒719-1155　総社市小寺16-16","car":"ルノー アルピーヌ A110","note":"車両カラー：ビトンリミテ（白）411φ","events":{"3/25":"③フリー走行"}},{"no":140,"name":"井村 卓司","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"ポルシェ ケイマン","note":"3/25参加者（新規）","events":{"3/25":"③フリー走行"}},{"no":141,"name":"和田 保美","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"トヨタ GR86","note":"3/25参加者（新規）","events":{"3/25":"③フリー走行"}},{"no":142,"name":"石井 克彦","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"フェラーリ SF90","note":"3/25参加者（新規）","events":{"3/25":"③フリー走行"}},{"no":143,"name":"西瀬 光","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"ホンダ S660","note":"3/25参加者（新規）","events":{"3/25":"③フリー走行"}},{"no":144,"name":"清永 秀城","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"coretec eFalcon","note":"3/25参加者（新規）","events":{"3/25":"②先導走行"}},{"no":145,"name":"神宝 敦史","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"トヨタ プラド","note":"3/25参加者（新規）","events":{"3/25":"②先導走行"}},{"no":146,"name":"中田 春奈","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"トヨタ GR86","note":"3/25参加者（新規）","events":{"3/25":"②先導走行"}},{"no":147,"name":"久山 友輝","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"3/25参加者（新規）","events":{"3/25":"①見学"}},{"no":148,"name":"和田 音生","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"トヨタ カローラレビン","note":"3/25参加者（新規）","events":{"3/25":"①見学"}},{"no":149,"name":"林 累主","joined":"","org":"","category":"","role":"","referrer":"","email":"","tel":"","address":"","car":"","note":"3/25参加者（新規）","events":{"3/25":"①見学"}}],"events":["2/28","3/14","3/29","3/30","5/12","9/13","9/13泊","12月7日","2月17日","3月28日","3月28日2","3月29日","7月13日","3/29　振込","3/29　入金","2023　会費","2024　会費","中山","3/26","3/27","7/262","11/20","3/262","11/26","3/25"],"fees":{"2023":{},"2024":{},"2025":{},"2026":{}}};
+
+// 走行会イベントの判定（1=見学, 2=走行, 3=フリー走行）
+const DRIVE_EVENTS = new Set(['9/13','9/13泊','2月17日','3月29日','7月13日','3/27','11/20','3/262','11/26','3/25']);
+
+// イベントキー → 年月日表示名
+const EVENT_LABELS = {
+  "2/28":       "2022年2月28日",
+  "3/14":       "2022年3月14日",
+  "3/29":       "2022年3月29日",
+  "3/30":       "2022年3月30日",
+  "5/12":       "2022年5月12日",
+  "9/13":       "2022年9月13日",
+  "9/13泊":     "2022年9月13日（泊）",
+  "12月7日":    "2022年12月7日",
+  "2月17日":    "2023年2月17日",
+  "3月28日":    "2023年3月28日",
+  "3月28日2":   "2023年3月28日②",
+  "3月29日":    "2023年3月29日",
+  "7月13日":    "2023年7月13日",
+  "3/29　振込": "2023年3月29日 振込",
+  "3/29　入金": "2023年3月29日 入金",
+  "2023　会費": "2023年 会費",
+  "2024　会費": "2024年 会費",
+  "中山":       "2023年 中山",
+  "3/26":       "2024年3月26日",
+  "3/27":       "2024年3月27日",
+  "7/262":      "2024年7月26日②",
+  "11/20":      "2024年11月20日",
+  "3/262":      "2025年3月26日②",
+  "11/26":      "2025年11月26日",
+  "3/25":       "2026年3月25日"
+};
+
+// 年月日順（表示順）
+const EVENT_ORDER = [
+  "3/14","3/29","3/30","5/12","9/13","9/13泊","12月7日",
+  "2月17日","3月28日","3月28日2","3月29日","7月13日",
+  "3/29　振込","3/29　入金","2023　会費","2024　会費","中山",
+  "3/26","3/27","7/262","11/20",
+  "3/262","11/26",
+  "2/28","3/25"
+];
+
+// 表示ラベル取得ヘルパー
+function evLabel(key) { return EVENT_LABELS[key] || key; }
+// イベント種別メタデータ
+let EVENT_META = {};
+DB.events.forEach(e => {
+  if (DRIVE_EVENTS.has(e)) EVENT_META[e] = 'drive';
+  else if (['3/29　振込','3/29　入金','2023　会費','2024　会費'].includes(e)) EVENT_META[e] = 'money';
+  else EVENT_META[e] = 'normal';
+});
+
+let currentFilter = 'all';
+let currentEvFilter = 'all'; // 'all' | 'attend' | 'absent' | 'empty'
+
+function setEvFilter(f, el) {
+  currentEvFilter = f;
+  document.querySelectorAll('#evFilterAll,#evFilterAttend,#evFilterAbsent,#evFilterEmpty')
+    .forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  loadEventAttendance();
+}
+let selectedIdx = -1;
+let editingIdx = -1;
+
+// ===== UTIL =====
+function attendLabel(val, type) {
+  if (!val || val === '') return '';
+  if (val === '〇' || val === '○') return {cls:'attend-circle', text:'〇 出席'};
+  if (val === '×') return {cls:'attend-x', text:'× 欠席'};
+  // 文字列形式（新データ）
+  if (val === '①見学')      return {cls:'attend-1', text:'① 見学'};
+  if (val === '②先導走行')  return {cls:'attend-2', text:'② 先導走行'};
+  if (val === '③フリー走行') return {cls:'attend-3', text:'③ フリー走行'};
+  if (type === 'drive') {
+    if (val === '1') return {cls:'attend-1', text:'① 見学'};
+    if (val === '2') return {cls:'attend-2', text:'② 走行'};
+    if (val === '3') return {cls:'attend-3', text:'③ フリー'};
+  }
+  if (type === 'money') return {cls:'attend-num', text:'¥'+Number(val).toLocaleString()};
+  return {cls:'attend-1', text:val};
+}
+
+// ===== MEMBER LIST =====
+function filterMembers() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const list = document.getElementById('memberList');
+  list.innerHTML = '';
+  let shown = 0;
+  DB.members.forEach((m, i) => {
+    if (m.name === '集計') return;
+    // 退会フィルタ：退会者タブ以外では退会者を非表示
+    if (currentFilter !== 'withdrawn' && m.withdrawn) return;
+    if (currentFilter === 'withdrawn' && !m.withdrawn) return;
+    // その他フィルタ
+    if (currentFilter === 'joined'   && m.joined !== '〇') return;
+    if (currentFilter === 'founder'  && m.category !== '発起人') return;
+    if (currentFilter === 'staff'    && !['事務局'].includes(m.category) && m.role !== '事務局') return;
+    if (currentFilter === 'family'   && m.category !== '家族会員' && !m.feeExempt) return;
+    // search
+    if (q && !m.name.toLowerCase().includes(q) && !m.org.toLowerCase().includes(q) && !m.car.toLowerCase().includes(q)) return;
+    shown++;
+    const div = document.createElement('div');
+    div.className = 'member-item' + (i === selectedIdx ? ' selected' : '');
+    div.onclick = () => selectMember(i, div);
+    let badges = '';
+    if (m.withdrawn) badges += '<span class="tag" style="background:rgba(224,85,85,0.2);color:var(--red)">退会</span>';
+    if (m.joined === '〇') badges += '<span class="tag tag-joined">入会</span>';
+    if (m.category === '家族会員') badges += '<span class="tag" style="background:rgba(200,168,75,0.2);color:var(--accent)">家族</span>';
+    if (m.feeExempt && m.category !== '家族会員') badges += '<span class="tag" style="background:rgba(85,153,238,0.2);color:var(--blue)">免除</span>';
+    if (m.category === '発起人') badges += '<span class="tag tag-founder">発起人</span>';
+    if (m.category === '事務局' || m.role === '事務局' || m.role.includes('事務局')) badges += '<span class="tag tag-staff">事務局</span>';
+    if (m.role === '会長') badges += '<span class="tag tag-founder">会長</span>';
+    if (m.role === '副会長') badges += '<span class="tag tag-founder">副会長</span>';
+    div.innerHTML = `
+      <div class="member-name">${m.name || '（名前なし）'}</div>
+      <div class="member-org">${m.org || '&nbsp;'}</div>
+      ${badges ? `<div class="member-badges">${badges}</div>` : ''}
+    `;
+    list.appendChild(div);
+  });
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  filterMembers();
+}
+
+function selectMember(idx, el) {
+  selectedIdx = idx;
+  document.querySelectorAll('.member-item').forEach(e => e.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+  renderDetail(DB.members[idx]);
+}
+
+function renderDetail(m) {
+  const panel = document.getElementById('detailPanel');
+  const idx = selectedIdx;
+
+  const evEntries = Object.entries(m.events || {})
+    .sort((a,b) => {
+      const oi = EVENT_ORDER.indexOf(a[0]);
+      const oj = EVENT_ORDER.indexOf(b[0]);
+      return (oi<0?999:oi) - (oj<0?999:oj);
+    });
+  const evRows = evEntries.map(([k,v]) => {
+    const type = EVENT_META[k] || 'normal';
+    const lbl = attendLabel(v, type);
+    const badge = lbl ? `<span class="attend-badge ${lbl.cls}">${lbl.text}</span>` : v;
+    return `<tr><td style="white-space:nowrap">${evLabel(k)}</td><td>${badge}</td></tr>`;
+  }).join('');
+
+  // 会費データ
+  const feeYears = Object.keys(DB.fees).sort();
+  const feeRows = feeYears.map(y => {
+    const val = DB.fees[y]?.[m.name] || '';
+    const isPaid = val === '〇';
+    return `
+      <tr>
+        <td style="font-weight:500;white-space:nowrap">${y}年度</td>
+        <td>
+          <div class="fee-toggle">
+            <button class="${isPaid ? 'paid' : ''}"
+              onclick="setFeeFromDetail('${m.name.replace(/'/g,"\\'")}','${y}','〇',${idx})">〇 納入</button>
+            <button class="${!isPaid && val === '×' ? 'unpaid' : ''}"
+              onclick="setFeeFromDetail('${m.name.replace(/'/g,"\\'")}','${y}','×',${idx})">× 未納</button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="detail-card">
+      <div class="detail-header">
+        <div>
+          <div class="detail-name">${m.name || '（名前なし）'}</div>
+          <div class="detail-name-badges">
+            ${m.withdrawn ? '<span class="tag" style="background:rgba(224,85,85,0.2);color:var(--red)">退会済</span>' : ''}
+            ${m.joined === '〇' ? '<span class="tag tag-joined">入会済</span>' : '<span class="tag" style="background:rgba(100,100,120,0.2);color:var(--text2)">未入会</span>'}
+            ${m.category === '発起人' ? '<span class="tag tag-founder">発起人</span>' : ''}
+            ${m.category === '事務局' ? '<span class="tag tag-staff">事務局</span>' : ''}
+            ${m.role ? `<span class="tag" style="background:rgba(100,100,120,0.3);color:var(--text2)">${m.role}</span>` : ''}
+          </div>
+        </div>
+        <button class="new-event-btn" onclick="openEditModal(${idx})">✏️ 編集</button>
+        ${m.withdrawn
+          ? `<button class="new-event-btn" onclick="restoreMember(${idx})"
+               style="background:rgba(76,175,125,0.15);color:var(--green);border:1px solid rgba(76,175,125,0.4)">↩ 復帰</button>
+             <button class="new-event-btn" onclick="deleteMember(${idx})"
+               style="background:rgba(224,85,85,0.15);color:var(--red);border:1px solid rgba(224,85,85,0.4)">🗑 完全削除</button>`
+          : `<button class="new-event-btn" onclick="withdrawMember(${idx})"
+               style="background:rgba(224,85,85,0.1);color:var(--red);border:1px solid rgba(224,85,85,0.3)">退会処理</button>`
+        }
+      </div>
+      <div class="section-title">基本情報</div>
+      <div class="info-grid">
+        <div class="info-item"><label>所属</label><span>${m.org || '—'}</span></div>
+        <div class="info-item"><label>紹介者</label><span>${m.referrer || '—'}</span></div>
+        <div class="info-item"><label>TEL</label><span>${m.tel || '—'}</span></div>
+        <div class="info-item"><label>Gmail</label><span>${m.email ? `<a href="mailto:${m.email}">${m.email}</a>` : '—'}</span></div>
+        <div class="info-item full"><label>住所</label><span>${m.address || '—'}</span></div>
+        <div class="info-item full"><label>車種</label><span>${m.car || '—'}</span></div>
+        ${m.note ? `<div class="info-item full"><label>備考</label><span style="color:var(--accent)">${m.note}</span></div>` : ''}
+      </div>
+    </div>
+
+    <div class="detail-card">
+      <div class="section-title">🎫 入会・会費状況</div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px">入会状況</div>
+        <div class="fee-toggle">
+          <button class="${m.joined === '〇' ? 'paid' : ''}"
+            onclick="toggleJoined(${idx},'〇')">〇 入会済</button>
+          <button class="${m.joined !== '〇' ? 'unpaid' : ''}"
+            onclick="toggleJoined(${idx},'')">— 未入会</button>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:8px">会費免除</div>
+        <div class="fee-toggle">
+          <button class="${m.feeExempt ? 'paid' : ''}" style="${m.feeExempt ? 'background:rgba(85,153,238,0.2);color:var(--blue)' : ''}"
+            onclick="toggleFeeExempt(${idx},true)">免除</button>
+          <button class="${!m.feeExempt ? 'unpaid' : ''}" style="${!m.feeExempt ? '' : ''}"
+            onclick="toggleFeeExempt(${idx},false)">対象</button>
+        </div>
+        ${m.feeExempt ? `<div style="font-size:12px;color:var(--blue);margin-top:6px">💡 会費集計の対象外です</div>` : ''}
+      </div>
+      ${feeYears.length > 0 ? `
+      <div style="font-size:13px;color:var(--text2);margin-bottom:8px">会費納入履歴</div>
+      <table class="events-table">
+        <thead><tr><th>年度</th><th>状況</th></tr></thead>
+        <tbody>${feeRows}</tbody>
+      </table>` : '<p style="color:var(--text2);font-size:13px">会費年度が未設定です（会費管理タブで追加してください）</p>'}
+    </div>
+
+    ${evEntries.length > 0 ? `
+    <div class="detail-card">
+      <div class="section-title">📅 イベント出席履歴 <span style="color:var(--text);font-size:14px">${evEntries.length}件</span></div>
+      <table class="events-table">
+        <thead><tr><th>イベント</th><th>状況</th></tr></thead>
+        <tbody>${evRows}</tbody>
+      </table>
+    </div>` : ''}
+  `;
+}
+
+// 詳細パネルから入会状況を切替
+// ===== MEMBER LIST PDF =====
+function exportMemberListPDF() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+
+  // 現在のフィルタ・検索条件で絞り込み（filterMembersと同じロジック）
+  const members = DB.members.filter(m => {
+    if (!m.name || m.name === '集計') return false;
+    if (currentFilter !== 'withdrawn' && m.withdrawn) return false;
+    if (currentFilter === 'withdrawn' && !m.withdrawn) return false;
+    if (currentFilter === 'joined'   && m.joined !== '〇') return false;
+    if (currentFilter === 'founder'  && m.category !== '発起人') return false;
+    if (currentFilter === 'staff'    && !['事務局'].includes(m.category) && m.role !== '事務局') return false;
+    if (currentFilter === 'family'   && m.category !== '家族会員' && !m.feeExempt) return false;
+    if (q && !m.name.toLowerCase().includes(q) && !m.org.toLowerCase().includes(q) && !m.car.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const filterLabels = {
+    all:'全会員', joined:'入会済', founder:'発起人', staff:'事務局',
+    family:'家族会員', withdrawn:'退会者'
+  };
+  const filterLabel = filterLabels[currentFilter] || '全会員';
+  const searchLabel = q ? `　検索：「${q}」` : '';
+  const dateStr = new Date().toLocaleDateString('ja-JP', {year:'numeric', month:'long', day:'numeric'});
+
+  const rows = members.map((m, i) => {
+    const tags = [];
+    if (m.withdrawn)            tags.push('<span style="padding:1px 5px;background:#fde8e8;color:#a02020;border-radius:3px;font-size:10px">退会</span>');
+    if (m.joined === '〇')      tags.push('<span style="padding:1px 5px;background:#d4edda;color:#1a6b35;border-radius:3px;font-size:10px">入会</span>');
+    if (m.category === '家族会員') tags.push('<span style="padding:1px 5px;background:#f0e8d0;color:#7a5c00;border-radius:3px;font-size:10px">家族</span>');
+    if (m.feeExempt && m.category !== '家族会員') tags.push('<span style="padding:1px 5px;background:#dceeff;color:#2255aa;border-radius:3px;font-size:10px">免除</span>');
+    if (m.category === '発起人') tags.push('<span style="padding:1px 5px;background:#f0e8d0;color:#7a5c00;border-radius:3px;font-size:10px">発起人</span>');
+    if (m.category === '事務局') tags.push('<span style="padding:1px 5px;background:#dceeff;color:#2255aa;border-radius:3px;font-size:10px">事務局</span>');
+    if (m.role === '会長' || m.role === '副会長') tags.push(`<span style="padding:1px 5px;background:#f0e8d0;color:#7a5c00;border-radius:3px;font-size:10px">${m.role}</span>`);
+    const bg = i % 2 === 0 ? '#fff' : '#f9f9fb';
+    return `<tr style="background:${bg}">
+      <td style="padding:5px 8px;font-size:11px;color:#aaa;text-align:center;width:28px">${i+1}</td>
+      <td style="padding:5px 8px;font-size:13px;font-weight:600;white-space:nowrap">
+        ${m.name}
+        <span style="margin-left:4px">${tags.join(' ')}</span>
+      </td>
+      <td style="padding:5px 8px;font-size:12px;color:#555">${m.org || '—'}</td>
+      <td style="padding:5px 8px;font-size:12px;color:#555">${m.tel || '—'}</td>
+      <td style="padding:5px 8px;font-size:11px;color:#777">${m.car || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<title>会員一覧　${filterLabel}</title>
+<style>
+  @media print {
+    html, body { margin:0 !important; padding:0 !important; }
+    .no-print { display:none !important; }
+    @page { margin:6mm 8mm !important; size:A4; }
+    .page { padding:4mm 5mm !important; max-width:100% !important; }
+    thead { display:table-header-group; }
+    tr { break-inside:avoid; }
+  }
+  * { box-sizing:border-box; }
+  body { font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif; margin:0; background:#fff; color:#222; font-size:12px; }
+  .page { max-width:760px; margin:0 auto; padding:16px 20px; }
+  .header-bar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:3px solid #1a1a2e; }
+  .title-main { font-size:20px; font-weight:700; color:#1a1a2e; }
+  .title-sub { font-size:11px; color:#888; margin-top:3px; }
+  .meta { text-align:right; font-size:11px; color:#999; line-height:1.8; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#1a1a2e; color:#fff; padding:6px 8px; font-size:11px; font-weight:600; text-align:left; letter-spacing:0.5px; }
+  td { border-bottom:1px solid #eee; vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  .footer { margin-top:12px; font-size:10px; color:#bbb; text-align:right; }
+  .print-btn { position:fixed; bottom:20px; right:20px; padding:10px 22px; background:#1a1a2e; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+</style>
+</head><body>
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <div class="title-main">👥 会員一覧　${filterLabel}${searchLabel}</div>
+      <div class="title-sub">PIRIRI MEMBERS CLUB</div>
+    </div>
+    <div class="meta">出力日：${dateStr}<br>合計：${members.length}名</div>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:28px">#</th>
+      <th style="width:200px">氏名 / 区分</th>
+      <th>所属</th>
+      <th style="width:130px">TEL</th>
+      <th style="width:130px">車種</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="footer">ピリリメンバーズクラブ 事務局</div>
+</div>
+<button class="print-btn no-print" onclick="window.print()">🖨️ 印刷 / PDF保存</button>
+</body></html>`;
+
+  showPdfPreview(html, '会員一覧_' + filterLabel);
+}
+
+// ===== MEMBER ACTIONS =====
+function withdrawMember(idx) {
+  const m = DB.members[idx];
+  if (!confirm(`「${m.name}」を退会処理しますか？\n\n退会者タブで確認でき、復帰も可能です。`)) return;
+  DB.members[idx].withdrawn = true;
+  const today = new Date().toLocaleDateString('ja-JP');
+  DB.members[idx].note = (DB.members[idx].note ? DB.members[idx].note + '　' : '') + `退会:${today}`;
+  autoSave();
+  renderDetail(DB.members[idx]);
+  filterMembers();
+}
+
+function restoreMember(idx) {
+  const m = DB.members[idx];
+  if (!confirm(`「${m.name}」を現役に復帰させますか？`)) return;
+  DB.members[idx].withdrawn = false;
+  autoSave();
+  filterMembers();
+  renderDetail(DB.members[idx]);
+}
+
+function deleteMember(idx) {
+  const m = DB.members[idx];
+  if (!confirm(`「${m.name}」を完全に削除しますか？\n\nこの操作は元に戻せません。`)) return;
+  if (!confirm(`本当に削除しますか？\n「${m.name}」のすべてのデータが消えます。`)) return;
+  DB.members.splice(idx, 1);
+  selectedIdx = -1;
+  autoSave();
+  filterMembers();
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">🗑</div>
+      <div>削除しました</div>
+    </div>`;
+}
+
+function toggleFeeExempt(idx, val) {
+  DB.members[idx].feeExempt = val;
+  autoSave();
+  filterMembers();
+  renderDetail(DB.members[idx]);
+  if (document.getElementById('tab-fee').style.display !== 'none') renderFeeTable();
+}
+
+function toggleJoined(idx, val) {
+  DB.members[idx].joined = val;
+  autoSave();
+  filterMembers();
+  renderDetail(DB.members[idx]);
+}
+
+// 詳細パネルから会費を更新
+function setFeeFromDetail(name, year, val, idx) {
+  if (!DB.fees[year]) DB.fees[year] = {};
+  if (DB.fees[year][name] === val) {
+    delete DB.fees[year][name];
+  } else {
+    DB.fees[year][name] = val;
+  }
+  autoSave();
+  renderDetail(DB.members[idx]);
+}
+
+// ===== EVENT TAB =====
+function initEventSelect() {
+  const sel = document.getElementById('eventSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">イベントを選択...</option>';
+
+  // DB.eventsを基準に、EVENT_ORDER順で並べる。未登録は末尾
+  const evList = DB.events || [];
+  const ordered = [
+    ...EVENT_ORDER.filter(e => evList.includes(e)),
+    ...evList.filter(e => !EVENT_ORDER.includes(e))
+  ];
+
+  // orderedが空の場合はDB.eventsをそのまま使う（フォールバック）
+  const finalList = ordered.length > 0 ? ordered : evList;
+
+  finalList.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e;
+    const meta = EVENT_META[e] || 'normal';
+    opt.textContent = evLabel(e) + (meta === 'drive' ? ' 🏎️' : meta === 'money' ? ' 💴' : '');
+    sel.appendChild(opt);
+  });
+}
+
+function loadEventAttendance() {
+  const eventName = document.getElementById('eventSelect').value;
+  const container = document.getElementById('eventTableContainer');
+  const typeTag = document.getElementById('eventTypeTag');
+  const statsDiv = document.getElementById('eventStats');
+  const pdfBtn = document.getElementById('pdfBtn');
+
+  if (!eventName) {
+    container.innerHTML = '<div class="empty-state" style="padding-top:80px"><div class="empty-icon">📅</div><div>イベントを選択してください</div></div>';
+    typeTag.style.display = 'none';
+    statsDiv.innerHTML = '';
+    pdfBtn.disabled = true;
+    pdfBtn.style.background = 'var(--surface2)';
+    pdfBtn.style.color = 'var(--text2)';
+    return;
+  }
+  pdfBtn.disabled = false;
+  pdfBtn.style.background = '#c8a84b22';
+  pdfBtn.style.color = 'var(--accent)';
+  pdfBtn.style.borderColor = 'rgba(200,168,75,0.4)';
+
+  const type = EVENT_META[eventName] || 'normal';
+  typeTag.style.display = '';
+  const typeStr = type === 'drive' ? '🏎️ 走行会（①見学 ②走行 ③フリー）' : type === 'money' ? '💴 金額入力' : '📋 通常（〇/×）';
+  typeTag.textContent = evLabel(eventName) + '　' + typeStr;
+
+  // stats
+  let c1=0,c2=0,c3=0,cx=0,co=0;
+  DB.members.forEach(m => {
+    const v = m.events[eventName];
+    if (!v) return;
+    if (v==='〇'||v==='○') co++;
+    else if (v==='×') cx++;
+    else if (v==='1'||v==='①見学') c1++;
+    else if (v==='2'||v==='②先導走行') c2++;
+    else if (v==='3'||v==='③フリー走行') c3++;
+  });
+
+  if (type === 'drive') {
+    statsDiv.innerHTML = `
+      <div class="stat-box"><div class="stat-num" style="color:var(--blue)">${c1}</div><div class="stat-label">①見学</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:var(--accent)">${c2}</div><div class="stat-label">②先導走行</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:#bb88dd">${c3}</div><div class="stat-label">③フリー走行</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:var(--red)">${cx}</div><div class="stat-label">欠席</div></div>
+    `;
+  } else {
+    statsDiv.innerHTML = `
+      <div class="stat-box"><div class="stat-num" style="color:var(--green)">${co}</div><div class="stat-label">出席</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:var(--red)">${cx}</div><div class="stat-label">欠席</div></div>
+    `;
+  }
+
+  // 検索・フィルタ
+  const evQ = (document.getElementById('eventSearchInput')?.value || '').toLowerCase();
+
+  // table
+  let rows = '';
+  DB.members.forEach((m, idx) => {
+    if (m.name === '集計' || !m.name) return;
+    const val = m.events[eventName] || '';
+
+    // 検索フィルタ
+    if (evQ && !m.name.toLowerCase().includes(evQ) && !m.org.toLowerCase().includes(evQ)) return;
+
+    // 出欠フィルタ
+    const isAttend = val && val !== '×';
+    const isAbsent = val === '×';
+    const isEmpty  = !val;
+    if (currentEvFilter === 'attend' && !isAttend) return;
+    if (currentEvFilter === 'absent' && !isAbsent) return;
+    if (currentEvFilter === 'empty'  && !isEmpty)  return;
+
+    let selectOpts = '';
+    if (type === 'normal') {
+      selectOpts = `<option value="">—</option><option value="〇" ${val==='〇'||val==='○'?'selected':''}>〇 出席</option><option value="×" ${val==='×'?'selected':''}>× 欠席</option>`;
+    } else if (type === 'drive') {
+      selectOpts = `<option value="">—</option><option value="〇" ${val==='〇'?'selected':''}>〇 出席</option><option value="①見学" ${val==='①見学'||val==='1'?'selected':''}>① 見学</option><option value="②先導走行" ${val==='②先導走行'||val==='2'?'selected':''}>② 先導走行</option><option value="③フリー走行" ${val==='③フリー走行'||val==='3'?'selected':''}>③ フリー走行</option><option value="×" ${val==='×'?'selected':''}>× 欠席</option>`;
+    } else {
+      selectOpts = `<option value="">—</option>`;
+    }
+
+    let input = '';
+    if (type === 'money') {
+      input = `<input type="number" class="attend-select" style="min-width:130px" value="${val}" placeholder="金額" onchange="updateAttend(${idx},'${eventName}',this.value)">`;
+    } else {
+      input = `<select class="attend-select ${val?'has-value':''}" onchange="updateAttend(${idx},'${eventName}',this.value)">${selectOpts}</select>`;
+    }
+
+    rows += `<tr>
+      <td>${m.name}</td>
+      <td style="color:var(--text2);font-size:14px">${m.org}</td>
+      <td>${input}</td>
+    </tr>`;
+  });
+
+  container.innerHTML = `
+    <table class="attendance-table">
+      <thead><tr><th>氏名</th><th>所属</th><th style="min-width:160px">出欠</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function updateAttend(idx, eventName, val) {
+  if (val === '' || val === undefined) {
+    delete DB.members[idx].events[eventName];
+  } else {
+    DB.members[idx].events[eventName] = val;
+  }
+  // update stats
+  autoSave();
+  loadEventAttendance();
+  const sel = document.getElementById('eventSelect');
+  const ev = sel.value;
+  if (ev !== eventName) sel.value = eventName;
+}
+
+function openAddMemberModal() {
+  ['add_name','add_org','add_tel','add_email','add_address','add_car','add_referrer','add_role','add_note'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('add_joined').value = '';
+  document.getElementById('add_category').value = '';
+  document.getElementById('addMemberModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('add_name').focus(), 100);
+}
+function closeAddModal() {
+  document.getElementById('addMemberModal').style.display = 'none';
+}
+function saveNewMember() {
+  const name = document.getElementById('add_name').value.trim();
+  if (!name) { alert('氏名は必須です'); document.getElementById('add_name').focus(); return; }
+  // 最大Noを取得
+  const maxNo = Math.max(0, ...DB.members.filter(m => m.no > 0).map(m => m.no));
+  const newMember = {
+    no: maxNo + 1,
+    name,
+    joined: document.getElementById('add_joined').value,
+    org: document.getElementById('add_org').value.trim(),
+    category: document.getElementById('add_category').value,
+    role: document.getElementById('add_role').value.trim(),
+    referrer: document.getElementById('add_referrer').value.trim(),
+    email: document.getElementById('add_email').value.trim(),
+    tel: document.getElementById('add_tel').value.trim(),
+    address: document.getElementById('add_address').value.trim(),
+    car: document.getElementById('add_car').value.trim(),
+    note: document.getElementById('add_note').value.trim(),
+    events: {}
+  };
+  // 「集計」行より前に挿入（末尾のno=0グループの前）
+  const insertIdx = DB.members.findIndex(m => m.name === '集計');
+  if (insertIdx >= 0) {
+    DB.members.splice(insertIdx, 0, newMember);
+  } else {
+    DB.members.push(newMember);
+  }
+  closeAddModal();
+  autoSave();
+  filterMembers();
+  // 追加した会員を自動選択
+  const newIdx = DB.members.findIndex(m => m.name === name && m.no === newMember.no);
+  if (newIdx >= 0) selectMember(newIdx, null);
+  // サイドバーで該当行をハイライト
+  setTimeout(() => {
+    const items = document.querySelectorAll('.member-item');
+    items.forEach(el => {
+      if (el.querySelector('.member-name')?.textContent === name) {
+        el.classList.add('selected');
+        el.scrollIntoView({block:'center', behavior:'smooth'});
+      }
+    });
+  }, 50);
+}
+
+// ===== MODALS =====
+function openNewEventModal() {
+  document.getElementById('newEventModal').style.display = 'flex';
+  document.getElementById('newEventName').focus();
+}
+function closeModal() {
+  document.getElementById('newEventModal').style.display = 'none';
+}
+function addNewEvent() {
+  const name = document.getElementById('newEventName').value.trim();
+  const type = document.getElementById('newEventType').value;
+  if (!name) { alert('イベント名を入力してください'); return; }
+  if (DB.events.includes(name)) { alert('同名のイベントが既に存在します'); return; }
+  DB.events.push(name);
+  EVENT_META[name] = type;
+  // add to select
+  const sel = document.getElementById('eventSelect');
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name + (type==='drive'?' 🏎️':type==='money'?' 💴':'');
+  sel.appendChild(opt);
+  closeModal();
+  autoSave();
+  document.getElementById('newEventName').value = '';
+  sel.value = name;
+  loadEventAttendance();
+}
+
+function openEditModal(idx) {
+  editingIdx = idx;
+  const m = DB.members[idx];
+  document.getElementById('edit_name').value = m.name;
+  document.getElementById('edit_org').value = m.org;
+  document.getElementById('edit_tel').value = m.tel;
+  document.getElementById('edit_email').value = m.email;
+  document.getElementById('edit_address').value = m.address;
+  document.getElementById('edit_car').value = m.car;
+  document.getElementById('edit_referrer').value = m.referrer;
+  document.getElementById('edit_category').value = m.category;
+  document.getElementById('edit_role').value = m.role;
+  document.getElementById('edit_note').value = m.note;
+  document.getElementById('editMemberModal').style.display = 'flex';
+}
+function closeEditModal() {
+  document.getElementById('editMemberModal').style.display = 'none';
+}
+function saveEditMember() {
+  const m = DB.members[editingIdx];
+  m.name = document.getElementById('edit_name').value;
+  m.org = document.getElementById('edit_org').value;
+  m.tel = document.getElementById('edit_tel').value;
+  m.email = document.getElementById('edit_email').value;
+  m.address = document.getElementById('edit_address').value;
+  m.car = document.getElementById('edit_car').value;
+  m.referrer = document.getElementById('edit_referrer').value;
+  m.category = document.getElementById('edit_category').value;
+  m.role = document.getElementById('edit_role').value;
+  m.note = document.getElementById('edit_note').value;
+  autoSave();
+  closeEditModal();
+  filterMembers();
+  renderDetail(m);
+}
+
+// ===== PDF EXPORT =====
+function exportEventPDF() {
+  const eventName = document.getElementById('eventSelect').value;
+  if (!eventName) return;
+  const type = EVENT_META[eventName] || 'normal';
+  const isDrive = type === 'drive';
+
+  // 参加者を抽出（× と 未入力を除く）
+  const participants = DB.members
+    .filter(m => m.name && m.name !== '集計')
+    .map(m => ({ m, val: m.events[eventName] || '' }))
+    .filter(({val}) => val && val !== '×')
+    .sort((a,b) => {
+      // 走行会: 区分順（1→2→3→〇）、それ以外は名前順
+      if (isDrive) {
+        const order = {'1':0,'2':1,'3':2,'〇':3,'○':3};
+        return (order[a.val]??9) - (order[b.val]??9);
+      }
+      return a.m.name.localeCompare(b.m.name, 'ja');
+    });
+
+  // 区分ラベル
+  const valLabel = (val, isDrive) => {
+    if (!val) return '';
+    if (val === '〇' || val === '○') return '出席';
+    if (val === '①見学' || val === '1') return '① 見学';
+    if (val === '②先導走行' || val === '2') return '② 先導走行';
+    if (val === '③フリー走行' || val === '3') return '③ フリー走行';
+    if (!isDrive) return val;
+    return val;
+  };
+
+  // 統計
+  const stats = {};
+  participants.forEach(({val}) => {
+    const lbl = valLabel(val, isDrive);
+    stats[lbl] = (stats[lbl]||0) + 1;
+  });
+
+  // グループ分け（走行会のみ）
+  const groups = isDrive
+    ? [
+        { label:'① 見学', items: participants.filter(p=>p.val==='①見学'||p.val==='1') },
+        { label:'② 先導走行', items: participants.filter(p=>p.val==='②先導走行'||p.val==='2') },
+        { label:'③ フリー走行', items: participants.filter(p=>p.val==='③フリー走行'||p.val==='3') },
+        { label:'一般出席', items: participants.filter(p=>p.val==='〇'||p.val==='○') },
+      ].filter(g=>g.items.length>0)
+    : [{ label:'', items: participants }];
+
+  // 行HTML生成
+  const rowsHtml = (items, isDrive) => items.map((p,i) => {
+    const {m, val} = p;
+    const catBadge = m.category
+      ? `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:#f0e8d0;color:#7a5c00;margin-left:4px">${m.category}</span>`
+      : '';
+    const roleBadge = m.role
+      ? `<span style="font-size:11px;padding:1px 5px;border-radius:3px;background:#e8f0f8;color:#2a5080;margin-left:4px">${m.role}</span>`
+      : '';
+    return `<tr style="background:${i%2===0?'#fff':'#f9f9fb'}">
+      <td style="padding:7px 10px;font-size:15px;border-bottom:1px solid #eee;width:32px;color:#999;text-align:center">${i+1}</td>
+      <td style="padding:7px 10px;font-size:15px;border-bottom:1px solid #eee;font-weight:600;white-space:nowrap">
+        ${m.name}${catBadge}${roleBadge}
+      </td>
+      <td style="padding:7px 10px;font-size:14px;border-bottom:1px solid #eee;color:#555">${m.org||'—'}</td>
+      <td style="padding:7px 10px;font-size:14px;border-bottom:1px solid #eee;color:#444">${m.car||'—'}</td>
+      ${isDrive ? '' : ''}
+    </tr>`;
+  }).join('');
+
+  const groupsHtml = groups.map(g => `
+    ${g.label ? `<tr class="group-header"><td colspan="4">${g.label}（${g.items.length}名）</td></tr>` : ''}
+    ${rowsHtml(g.items, isDrive)}
+  `).join('');
+
+  const statHtml = Object.entries(stats).map(([k,v])=>
+    `<span style="margin-right:16px"><strong style="font-size:18px">${v}</strong><span style="font-size:13px;color:#888;margin-left:3px">名 ${k}</span></span>`
+  ).join('');
+
+  const dateStr = new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+
+  const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<title>参加者リスト｜${eventName}</title>
+<style>
+  @media print {
+    html, body { margin:0 !important; padding:0 !important; }
+    .no-print { display:none !important; }
+    @page { margin:6mm 8mm 6mm 8mm !important; size:A4; }
+    .page { padding:4mm 5mm !important; max-width:100% !important; }
+    .header-bar, .stats-bar { break-inside: avoid; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr.group-header { break-after: avoid; }
+    tr { break-inside: avoid; }
+    .footer { break-inside: avoid; }
+  }
+  body { font-family: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic', sans-serif; margin:0; background:#fff; color:#222; font-size:12px; }
+  .page { max-width: 760px; margin: 0 auto; padding: 16px 20px; }
+  .header-bar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; padding-bottom:10px; border-bottom:3px solid #1a1a2e; }
+  .club-name { font-size:11px; color:#888; letter-spacing:2px; margin-bottom:3px; }
+  .event-title { font-size:20px; font-weight:700; color:#1a1a2e; }
+  .meta { text-align:right; font-size:11px; color:#999; line-height:1.7; }
+  .stats-bar { display:flex; align-items:center; background:#f5f5f8; border-radius:6px; padding:8px 14px; margin-bottom:12px; }
+  .stats-total { font-size:26px; font-weight:700; color:#1a1a2e; margin-right:16px; }
+  .stats-total span { font-size:13px; color:#888; margin-left:3px; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#1a1a2e; color:#fff; padding:6px 8px; font-size:11px; font-weight:600; text-align:left; letter-spacing:0.5px; }
+  td { padding:5px 8px; font-size:12px; border-bottom:1px solid #eee; vertical-align:middle; }
+  tr:nth-child(even) td { background:#f9f9fb; }
+  tr.group-header td { padding:6px 8px 3px; font-size:10px; font-weight:700; color:#888; letter-spacing:1px; background:#f0f0f5; border-top:2px solid #ccc; }
+  .print-btn { position:fixed; bottom:20px; right:20px; padding:10px 22px; background:#1a1a2e; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+  .print-btn:hover { background:#2a2a4e; }
+  .footer { margin-top:12px; font-size:10px; color:#bbb; text-align:right; }
+</style>
+</head><body>
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <div class="club-name">PIRIRI MEMBERS CLUB</div>
+      <div class="event-title">📋 ${evLabel(eventName)}　参加者リスト</div>
+    </div>
+    <div class="meta">出力日：${dateStr}<br>合計：${participants.length}名</div>
+  </div>
+  <div class="stats-bar">
+    <div class="stats-total">${participants.length}<span>名</span></div>
+    <div>${statHtml}</div>
+  </div>
+  <table>
+    <thead><tr>
+      <th style="width:32px">#</th>
+      <th style="width:160px">氏名 / 区分</th>
+      <th>所属</th>
+      <th style="width:150px">車種</th>
+    </tr></thead>
+    <tbody>${groupsHtml}</tbody>
+  </table>
+  <div class="footer">ピリリメンバーズクラブ 事務局</div>
+</div>
+</body></html>`;
+
+  // blob URLを使わず、モーダルiframeに直接書き込む
+  showPdfPreview(html, eventName);
+}
+
+function printPdfFrame() {
+  const frame = document.getElementById('pdfFrame');
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+
+  // iPhoneは新ウィンドウ方式（iframeのcontentWindow.printが効かないため）
+  if (isIOS) {
+    _printViaNewWindow(frame.srcdoc || '');
+    return;
+  }
+
+  // PC・Android: iframe経由で印刷
+  try {
+    const fw = frame.contentWindow || frame.contentDocument?.defaultView;
+    if (fw && fw.print) {
+      try {
+        const doc = fw.document;
+        let styleEl = doc.getElementById('__print_override__');
+        if (!styleEl) {
+          styleEl = doc.createElement('style');
+          styleEl.id = '__print_override__';
+          doc.head.appendChild(styleEl);
+        }
+        styleEl.textContent = `@media print {
+          @page { margin: 4mm 5mm !important; size: A4; }
+          html, body { margin: 0 !important; padding: 0 !important; }
+          .page { padding: 3mm 4mm !important; max-width: 100% !important; }
+          thead { display: table-header-group; }
+          tr { break-inside: avoid; }
+        }`;
+      } catch(e) {}
+      fw.print();
+    } else {
+      _printViaNewWindow(frame.srcdoc || '');
+    }
+  } catch(e) {
+    _printViaNewWindow(frame.srcdoc || '');
+  }
+}
+
+function _printViaNewWindow(htmlContent) {
+  // iOS Safari: @pageが無視されるため、既存の@media printを最小余白版に置換
+  const PRINT_CSS = `@media print {
+    @page { margin: 0mm !important; size: A4; }
+    html, body { margin: 0 !important; padding: 0 !important; }
+    .page { padding: 5mm 6mm !important; max-width: 100% !important; margin: 0 !important; }
+    .no-print { display: none !important; }
+    .header-bar, .stats-bar { break-inside: avoid; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+    tr.group-header { break-after: avoid; }
+    .footer { break-inside: avoid; }
+  }`;
+  const prepared = htmlContent.replace(/@media print\s*\{[\s\S]*?\}/g, PRINT_CSS);
+  const w = window.open('', '_blank');
+  if (w) {
+    w.document.open();
+    w.document.write(prepared);
+    w.document.close();
+    setTimeout(() => { try { w.print(); } catch(e) {} }, 300);
+  }
+}
+
+function showPdfPreview(html, title) {
+  // オーバーレイがなければ作成
+  let overlay = document.getElementById('pdfOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'pdfOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;';
+    overlay.innerHTML = `
+      <div style="width:100%;max-width:820px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span id="pdfOverlayTitle" style="color:#e8c96a;font-weight:700;font-size:15px;font-family:'Noto Sans JP',sans-serif"></span>
+        <div style="display:flex;gap:8px">
+          <button onclick="printPdfFrame()"
+            style="padding:8px 20px;background:#c8a84b;color:#000;border:none;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans JP',sans-serif">
+            🖨️ 印刷 / PDF保存
+          </button>
+          <button onclick="document.getElementById('pdfOverlay').style.display='none'"
+            style="padding:8px 16px;background:#333;color:#ccc;border:1px solid #555;border-radius:6px;font-size:15px;cursor:pointer;font-family:'Noto Sans JP',sans-serif">
+            ✕ 閉じる
+          </button>
+        </div>
+      </div>
+      <iframe id="pdfFrame" style="width:100%;max-width:820px;flex:1;border:none;border-radius:8px;background:#fff;min-height:80vh"></iframe>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  document.getElementById('pdfOverlayTitle').textContent = '📋 ' + evLabel(title) + '　参加者リスト';
+  // iframeに直接書き込む（blob URL不要）
+  const frame = document.getElementById('pdfFrame');
+  frame.srcdoc = html;
+}
+
+// ===== EXCEL EXPORT =====
+function exportExcel(type) {
+  // typeは使わず全データを1ファイルに統合保存
+  try {
+    const wb = XLSX.utils.book_new();
+
+    // シート1: 会員名簿
+    const memHeaders = ['No','氏名','入会','所属','区分','役職','紹介者','Gmail','TEL','住所','車種','備考'];
+    const memRows = DB.members
+      .filter(m => m.name && m.name !== '集計')
+      .map(m => [m.no,m.name,m.joined,m.org,m.category,m.role,m.referrer,m.email,m.tel,m.address,m.car,m.note]);
+    const ws1 = XLSX.utils.aoa_to_sheet([memHeaders, ...memRows]);
+    ws1['!cols'] = memHeaders.map((_,ci) => ({ wch: Math.min(Math.max(...[memHeaders[ci],...memRows.map(r=>String(r[ci]||''))].map(v=>String(v).length))+2, 40) }));
+    XLSX.utils.book_append_sheet(wb, ws1, '会員名簿');
+
+    // シート2: イベント出欠
+    const evHeaders = ['氏名','所属',...DB.events];
+    const evRows = DB.members
+      .filter(m => m.name && m.name !== '集計')
+      .map(m => [m.name, m.org, ...DB.events.map(e => m.events[e]||'')]);
+    const ws2 = XLSX.utils.aoa_to_sheet([evHeaders, ...evRows]);
+    XLSX.utils.book_append_sheet(wb, ws2, 'イベント出欠');
+
+    // シート3: 会費管理
+    const years = Object.keys(DB.fees).sort();
+    const feeHeaders = ['氏名','所属',...years.map(y=>y+'年度')];
+    const feeRows = DB.members
+      .filter(m => m.name && m.name !== '集計')
+      .map(m => [m.name, m.org, ...years.map(y => DB.fees[y]?.[m.name]||'')]);
+    const ws3 = XLSX.utils.aoa_to_sheet([feeHeaders, ...feeRows]);
+    XLSX.utils.book_append_sheet(wb, ws3, '会費管理');
+
+    // シート4: イベント日付（EVENT_LABELSから生成）
+    const dateHeaders = ['イベントキー','表示名'];
+    const dateRows = DB.events.map(e => [e, evLabel(e)]);
+    const ws4 = XLSX.utils.aoa_to_sheet([dateHeaders, ...dateRows]);
+    XLSX.utils.book_append_sheet(wb, ws4, 'イベント日付');
+
+    const date = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, 'ピリリ会員管理_' + date + '.xlsx');
+
+    // ステータス更新（どのボタンから呼ばれても対応）
+    ['members','events','fee'].forEach(t => {
+      const el = document.getElementById('xl-status-' + t);
+      if (el) { el.textContent = '✅ 保存しました'; setTimeout(() => el.textContent = '', 3000); }
+    });
+  } catch(e) {
+    ['members','events','fee'].forEach(t => {
+      const el = document.getElementById('xl-status-' + t);
+      if (el) el.textContent = '❌ エラー: ' + e.message;
+    });
+  }
+}
+
+// ===== JSON SYNC =====
+function exportJSON() {
+  const json = JSON.stringify(DB, null, 0);
+  const statusEl = document.getElementById('json-copy-status');
+
+  // テキストエリアに表示（確実な方法）
+  const area = document.getElementById('jsonImportArea');
+  area.value = json;
+
+  // クリップボードにもコピー試行
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(json).then(() => {
+      statusEl.textContent = `✅ コピー完了！(${Math.ceil(json.length/1000)}KB) テキストエリアにも表示しています`;
+      setTimeout(() => statusEl.textContent = '', 8000);
+    }).catch(() => {
+      area.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      statusEl.textContent = `⬇ 下のテキストを全選択してコピーしてください (${Math.ceil(json.length/1000)}KB)`;
+    });
+  } else {
+    area.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    statusEl.textContent = `⬇ 下のテキストを全選択してコピーしてください (${Math.ceil(json.length/1000)}KB)`;
+  }
+}
+
+function importJSON() {
+  const statusEl = document.getElementById('json-import-status');
+  const text = document.getElementById('jsonImportArea').value.trim();
+  if (!text) { statusEl.textContent = '❌ テキストが空です'; return; }
+  try {
+    const parsed = JSON.parse(text);
+    if (!parsed.members) { statusEl.textContent = '❌ 正しいデータではありません'; return; }
+    // 参照を維持しながら中身を入れ替え（Firebase同期と互換性のため）
+    for (const k of Object.keys(DB)) { delete DB[k]; }
+    for (const k of Object.keys(parsed)) { DB[k] = parsed[k]; }
+    if (!DB.fees) DB.fees = {};
+    if (!DB.events) DB.events = [];
+
+    // EVENT_META完全再構築
+    EVENT_META = {};
+    DB.events.forEach(e => {
+      if (DRIVE_EVENTS.has(e)) EVENT_META[e] = 'drive';
+      else if (['3/29　振込','3/29　入金','2023　会費','2024　会費'].includes(e)) EVENT_META[e] = 'money';
+      else EVENT_META[e] = 'normal';
+    });
+
+    // 全タブ再初期化
+    autoSave();
+    filterMembers();
+    initEventSelect();
+
+    // 会費タブも再描画
+    renderFeeYearTabs();
+
+    // イベント選択をリセット
+    const evSel = document.getElementById('eventSelect');
+    if (evSel) {
+      evSel.value = '';
+      const container = document.getElementById('eventTableContainer');
+      if (container) container.innerHTML = `<div class="empty-state" style="padding-top:80px"><div class="empty-icon">📅</div><div>イベントを選択してください</div></div>`;
+    }
+
+    document.getElementById('jsonImportArea').value = '';
+
+    const evCount = DB.events.length;
+    const memCount = DB.members.filter(m => m.name && m.name !== '集計').length;
+    statusEl.textContent = `✅ ${memCount}名・${evCount}イベントを読み込みました`;
+    setTimeout(() => statusEl.textContent = '', 8000);
+  } catch(e) {
+    statusEl.textContent = '❌ 読み込みエラー: ' + e.message;
+  }
+}
+
+// ===== CSV COPY =====
+function buildCSV(type) {
+  const bom = '\uFEFF';
+  let headers, rows;
+  if (type === 'members') {
+    headers = ['No','氏名','入会','所属','区分','役','紹介者','Gmail','TEL','住所','車種','備考'];
+    rows = DB.members
+      .filter(m => m.name && m.name !== '集計')
+      .map(m => [m.no,m.name,m.joined,m.org,m.category,m.role,m.referrer,m.email,m.tel,m.address,m.car,m.note]);
+  } else if (type === 'events') {
+    headers = ['氏名','所属',...DB.events];
+    rows = DB.members
+      .filter(m => m.name && m.name !== '集計')
+      .map(m => [m.name, m.org, ...DB.events.map(e => m.events[e]||'')]);
+  } else if (type === 'fee') {
+    const years = Object.keys(DB.fees).sort();
+    headers = ['氏名','所属',...years.map(y=>y+'年度')];
+    rows = DB.members
+      .filter(m => m.name && m.name !== '集計')
+      .map(m => [m.name, m.org, ...years.map(y => DB.fees[y]?.[m.name]||'')]);
+  }
+  return bom + [headers,...rows].map(r => r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+}
+
+function copyCSV(type) {
+  const csv = buildCSV(type);
+  const statusEl = document.getElementById('copy-status-' + type);
+  const previewBox = document.getElementById('csvPreviewBox');
+  const previewText = document.getElementById('csvPreviewText');
+
+  // まずClipboard APIを試す
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(csv).then(() => {
+      statusEl.textContent = '✅ コピーしました！メモ帳に貼り付けて .csv で保存してください';
+      setTimeout(() => statusEl.textContent = '', 5000);
+      previewBox.style.display = 'none';
+    }).catch(() => {
+      // 失敗したらtextarea表示
+      showCsvTextarea(csv, statusEl, previewBox, previewText);
+    });
+  } else {
+    showCsvTextarea(csv, statusEl, previewBox, previewText);
+  }
+}
+
+function showCsvTextarea(csv, statusEl, previewBox, previewText) {
+  // textarea方式（確実に動く）
+  previewText.value = csv;
+  previewBox.style.display = 'block';
+  previewText.select();
+  try {
+    document.execCommand('copy');
+    statusEl.textContent = '✅ コピーしました！';
+    setTimeout(() => statusEl.textContent = '', 4000);
+  } catch(e) {
+    statusEl.textContent = '⬇ 下のテキストを手動でコピーしてください';
+  }
+  previewText.focus();
+  previewText.select();
+}
+
+
+function today() {
+  return new Date().toISOString().slice(0,10).replace(/-/g,'');
+}
+
+function saveToLocal() {
+  // Firestoreへ手動保存
+  if (typeof saveToFirestore === 'function') {
+    saveToFirestore(true);
+  } else {
+    const el = document.getElementById('saveStatus');
+    if (el) el.textContent = '⏳ Firebase接続待ち...';
+  }
+}
+
+// 自動保存（変更後2秒でFirestoreに送信）
+let autoSaveTimer = null;
+function autoSave() {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    if (typeof saveToFirestore === 'function') {
+      saveToFirestore(false);
+    }
+  }, 2000);
+}
+
+function loadFromLocal() {
+  // Firestoreから手動再読み込み
+  if (typeof loadFromFirestore === 'function') {
+    loadFromFirestore();
+  } else {
+    const el = document.getElementById('saveStatus');
+    if (el) el.textContent = '⏳ Firebase接続待ち...';
+  }
+}
+
+function loadExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('loadStatus');
+
+  // ファイルサイズチェック
+  if (file.size > 10 * 1024 * 1024) {
+    status.textContent = '⚠️ ファイルが大きすぎます（10MB以下）';
+    input.value = '';
+    return;
+  }
+
+  status.textContent = '📂 読み込み中... しばらくお待ちください';
+
+  const reader = new FileReader();
+  reader.onerror = function() {
+    status.textContent = '❌ 読み込み失敗。ファイルを確認してください。';
+    input.value = '';
+  };
+  reader.onload = function(e) {
+    status.textContent = '⚙️ データを解析中...';
+    // iPhoneは処理が遅いため待機時間を長めに
+    const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+    setTimeout(function() {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      if (data.length < 2) { status.textContent = '❌ データがありません'; return; }
+      const hdrs = data[0];
+      const members = [];
+      const eventCols = [];
+      hdrs.forEach((h,i) => { if (h && i >= 12) eventCols.push({name:String(h), idx:i}); });
+      for (let r = 1; r < data.length; r++) {
+        const row = data[r];
+        if (!row[1]) continue;
+        const events = {};
+        eventCols.forEach(({name,idx}) => {
+          if (row[idx] !== undefined && row[idx] !== null && row[idx] !== '') {
+            const sv = String(row[idx]).trim();
+            if (sv && !sv.startsWith('=')) events[name] = sv;
+          }
+        });
+        members.push({
+          no: row[0]||0,
+          name: String(row[1]||'').replace(/\u3000/g,' ').trim(),
+          joined: row[2]?'〇':'',
+          org:      String(row[3]||'').trim(),
+          category: String(row[4]||'').trim(),
+          role:     String(row[5]||'').trim(),
+          referrer: String(row[6]||'').trim(),
+          email:    String(row[7]||'').trim(),
+          tel:      String(row[8]||'').trim(),
+          address:  String(row[9]||'').trim(),
+          car:      String(row[10]||'').trim(),
+          note:     String(row[11]||'').trim(),
+          events
+        });
+      }
+      DB.members = members;
+
+      // イベント出欠シートがあれば読み込む（アプリ保存形式）
+      const evSheetName = wb.SheetNames.find(n => n.includes('イベント') || n.includes('出欠'));
+      if (evSheetName) {
+        const evWs = wb.Sheets[evSheetName];
+        const evData = XLSX.utils.sheet_to_json(evWs, {header:1, defval:''});
+        if (evData.length > 0) {
+          const evHdrs = evData[0];
+          const eventsFromSheet = evHdrs.slice(2).filter(h => h);
+          for (let r = 1; r < evData.length; r++) {
+            const row = evData[r];
+            const name = String(row[0]||'').trim();
+            const member = DB.members.find(m => m.name === name);
+            if (member) {
+              member.events = {};
+              eventsFromSheet.forEach((ev, i) => {
+                const val = row[i+2];
+                if (val !== undefined && val !== null && val !== '') {
+                  member.events[ev] = String(val).trim();
+                }
+              });
+            }
+          }
+          DB.events = eventsFromSheet;
+        }
+      } else {
+        DB.events = eventCols.map(c => c.name);
+      }
+
+      // EVENT_META再構築
+      EVENT_META = {};
+      DB.events.forEach(e => {
+        if (DRIVE_EVENTS.has(e)) EVENT_META[e] = 'drive';
+        else if (['3/29　振込','3/29　入金','2023　会費','2024　会費'].includes(e)) EVENT_META[e] = 'money';
+        else EVENT_META[e] = 'normal';
+      });
+
+      // 会費シートがあれば読み込む
+      const feeSheetName = wb.SheetNames.find(n => n.includes('会費'));
+      if (feeSheetName) {
+        const feeWs = wb.Sheets[feeSheetName];
+        const feeData = XLSX.utils.sheet_to_json(feeWs, {header:1, defval:''});
+        if (feeData.length > 0) {
+          const feeHdrs = feeData[0].slice(2);
+          if (!DB.fees) DB.fees = {};
+          feeHdrs.forEach((h, hi) => {
+            const year = String(h).replace('年度','');
+            if (!DB.fees[year]) DB.fees[year] = {};
+            for (let r = 1; r < feeData.length; r++) {
+              const row = feeData[r];
+              const name = String(row[0]||'').trim();
+              const val = row[hi+2];
+              if (name && val) DB.fees[year][name] = String(val).trim();
+            }
+          });
+        }
+      }
+
+      autoSave();
+      filterMembers();
+      initEventSelect();
+      status.textContent = `✅ ${DB.members.length}名・${DB.events.length}イベントを読み込みました`;
+    } catch(err) {
+      status.textContent = '❌ 読み込みエラー: ' + err.message;
+    } finally {
+      input.value = '';
+    }
+    }, isIOS ? 800 : 80);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ===== TAB SWITCH =====
+function switchTab(tab) {
+  const tabs = ['members','events','fee','export'];
+  document.querySelectorAll('.nav-tab').forEach((t,i) => {
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  document.getElementById('tab-members').style.display = tab === 'members' ? 'flex'  : 'none';
+  document.getElementById('tab-events').style.display  = tab === 'events'  ? 'flex'  : 'none';
+  document.getElementById('tab-fee').style.display     = tab === 'fee'     ? 'flex'  : 'none';
+  document.getElementById('tab-export').style.display  = tab === 'export'  ? 'block' : 'none';
+  if (tab === 'fee') renderFeeTab();
+  if (tab === 'events') {
+    // タブ切替時に毎回再初期化（選択肢が消えるバグ対策）
+    const sel = document.getElementById('eventSelect');
+    if (sel && sel.options.length <= 1) initEventSelect();
+  }
+}
+
+// ===== FEE MANAGEMENT =====
+// DB.fees = { "2023": { "会員名": "〇" or "×" }, "2024": {...}, ... }
+if (!DB.fees) {
+  DB.fees = {};
+  // 既存データから2023・2024会費を移植
+  DB.members.forEach(m => {
+    if (!m.name || m.name === '集計') return;
+    // 2023会費
+    if (m.events && m.events['2023　会費']) {
+      if (!DB.fees['2023']) DB.fees['2023'] = {};
+      DB.fees['2023'][m.name] = '〇';
+    }
+    // 2024会費
+    if (m.events && m.events['2024　会費']) {
+      if (!DB.fees['2024']) DB.fees['2024'] = {};
+      DB.fees['2024'][m.name] = '〇';
+    }
+    // 旧会費列（〇）
+    if (m.joined === '〇' && m.events && m.events['会費']) {
+      // 古いデータは2022扱い
+      if (!DB.fees['2022']) DB.fees['2022'] = {};
+      DB.fees['2022'][m.name] = '〇';
+    }
+  });
+  // 年度がなければ2023〜2025を初期セット
+  if (Object.keys(DB.fees).length === 0) {
+    DB.fees['2023'] = {};
+    DB.fees['2024'] = {};
+    DB.fees['2025'] = {};
+  }
+}
+
+let currentFeeYear = Object.keys(DB.fees).sort().slice(-1)[0] || '2025';
+let currentFeeFilter = 'all'; // 'all' | 'paid' | 'unpaid'
+
+function renderFeeTab() {
+  // タブ切り替え時に検索・フィルタをリセット
+  const inp = document.getElementById('feeSearchInput');
+  if (inp) inp.value = '';
+  currentFeeFilter = 'all';
+  document.querySelectorAll('#feeFilterAll,#feeFilterPaid,#feeFilterUnpaid').forEach(b => b.classList.remove('active'));
+  const allBtn = document.getElementById('feeFilterAll');
+  if (allBtn) allBtn.classList.add('active');
+  renderFeeYearTabs();
+  renderFeeTable();
+}
+
+function renderFeeYearTabs() {
+  const container = document.getElementById('feeYearTabs');
+  const years = Object.keys(DB.fees).sort();
+  container.innerHTML = years.map(y =>
+    `<button class="fee-year-tab ${y===currentFeeYear?'active':''}" onclick="selectFeeYear('${y}')">${y}年度</button>`
+  ).join('');
+}
+
+function selectFeeYear(y) {
+  currentFeeYear = y;
+  renderFeeYearTabs();
+  renderFeeTable();
+}
+
+function addFeeYear() {
+  const years = Object.keys(DB.fees).map(Number).sort();
+  const next = years.length ? String(Math.max(...years) + 1) : String(new Date().getFullYear());
+  const input = prompt('追加する年度を入力してください', next);
+  if (!input) return;
+  const y = input.trim();
+  if (DB.fees[y]) { alert('その年度は既に存在します'); return; }
+  DB.fees[y] = {};
+  currentFeeYear = y;
+  renderFeeTab();
+}
+
+function setFeeFilter(f, el) {
+  currentFeeFilter = f;
+  document.querySelectorAll('#feeFilterAll,#feeFilterPaid,#feeFilterUnpaid').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderFeeTable();
+}
+
+function renderFeeTable() {
+  const tbody = document.getElementById('feeTableBody');
+  const summary = document.getElementById('feeSummary');
+  const yearData = DB.fees[currentFeeYear] || {};
+  const q = (document.getElementById('feeSearchInput')?.value || '').toLowerCase();
+
+  // 全会員ベースで集計（検索・フィルタ前）
+  const allMembers = DB.members.filter(m => m.name && m.name !== '集計' && !m.withdrawn);
+  const targetMembers = allMembers.filter(m => !m.feeExempt); // 集計対象（免除除く）
+  const exemptCount = allMembers.filter(m => m.feeExempt).length;
+  let paid = 0, unpaid = 0;
+  targetMembers.forEach(m => { yearData[m.name] === '〇' ? paid++ : unpaid++; });
+
+  summary.innerHTML = `
+    <div class="stat-box"><div class="stat-num" style="color:var(--green)">${paid}</div><div class="stat-label">納入済</div></div>
+    <div class="stat-box"><div class="stat-num" style="color:var(--red)">${unpaid}</div><div class="stat-label">未納</div></div>
+    <div class="stat-box"><div class="stat-num">${targetMembers.length}</div><div class="stat-label">対象</div></div>
+    ${exemptCount > 0 ? `<div class="stat-box"><div class="stat-num" style="color:var(--blue)">${exemptCount}</div><div class="stat-label">免除</div></div>` : ''}
+  `;
+
+  // 検索・フィルタ適用
+  const members = allMembers.filter(m => {
+    const isPaid = yearData[m.name] === '〇';
+    if (currentFeeFilter === 'paid'   && !isPaid) return false;
+    if (currentFeeFilter === 'unpaid' &&  (isPaid || m.feeExempt)) return false;
+    if (q && !m.name.toLowerCase().includes(q) && !m.org.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if (members.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text2);padding:24px">該当する会員がいません</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = members.map((m, i) => {
+    const val = yearData[m.name] || '';
+    const isPaid = val === '〇';
+    const rowStyle = m.feeExempt ? 'background:rgba(85,153,238,0.05)' : isPaid ? '' : 'background:rgba(224,85,85,0.05)';
+    const statusCell = m.feeExempt
+      ? `<span style="font-size:12px;padding:3px 10px;background:rgba(85,153,238,0.15);color:var(--blue);border-radius:4px;font-weight:600">免除</span>`
+      : `<div class="fee-toggle">
+          <button class="${isPaid?'paid':''}" onclick="setFee('${m.name.replace(/'/g,"\\'")}','〇')">〇 納入</button>
+          <button class="${!isPaid&&val?'unpaid':''}" onclick="setFee('${m.name.replace(/'/g,"\\'")}','×')">× 未納</button>
+        </div>`;
+    return `<tr style="${rowStyle}">
+      <td style="color:var(--text2);font-size:13px;width:40px">${m.no||'—'}</td>
+      <td style="font-weight:500">${m.name}${m.category==='家族会員'?'<span style="font-size:11px;margin-left:6px;padding:1px 6px;background:rgba(200,168,75,0.15);color:var(--accent);border-radius:3px">家族</span>':''}</td>
+      <td style="color:var(--text2);font-size:14px">${m.org||''}</td>
+      <td style="text-align:center">${statusCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportFeePDF() {
+  const yearData = DB.fees[currentFeeYear] || {};
+  const allMembers = DB.members.filter(m => m.name && m.name !== '集計' && !m.withdrawn);
+  const targetMembers = allMembers.filter(m => !m.feeExempt);
+  const exemptMembers = allMembers.filter(m => m.feeExempt);
+  const dateStr = new Date().toLocaleDateString('ja-JP', {year:'numeric', month:'long', day:'numeric'});
+
+  const allYears = Object.keys(DB.fees).sort();
+
+  let paid = 0, unpaid = 0;
+  targetMembers.forEach(m => { yearData[m.name] === '〇' ? paid++ : unpaid++; });
+
+  // テーブル行生成（免除者を除く）
+  const rows = targetMembers.map((m, i) => {
+    const val = yearData[m.name] || '';
+    const isPaid = val === '〇';
+    const statusBadge = isPaid
+      ? `<span style="display:inline-block;padding:2px 10px;background:#d4edda;color:#1a6b35;border-radius:4px;font-weight:700;font-size:11px">〇 納入済</span>`
+      : val === '×'
+        ? `<span style="display:inline-block;padding:2px 10px;background:#fde8e8;color:#a02020;border-radius:4px;font-weight:700;font-size:11px">× 未納</span>`
+        : `<span style="display:inline-block;padding:2px 10px;background:#f0f0f0;color:#999;border-radius:4px;font-size:11px">— 未登録</span>`;
+    const bg = i % 2 === 0 ? '#fff' : '#f9f9fb';
+    return `<tr style="background:${bg}">
+      <td style="padding:5px 8px;font-size:12px;color:#aaa;width:30px;text-align:center">${i+1}</td>
+      <td style="padding:5px 8px;font-size:13px;font-weight:600">${m.name}${m.category==='家族会員'?'<span style="font-size:10px;margin-left:4px;padding:1px 5px;background:#f0e8d0;color:#7a5c00;border-radius:3px">家族</span>':''}</td>
+      <td style="padding:5px 8px;font-size:12px;color:#666">${m.org || '—'}</td>
+      <td style="padding:5px 8px;text-align:center">${statusBadge}</td>
+    </tr>`;
+  }).join('');
+
+  // 免除者リスト
+  const exemptRows = exemptMembers.length > 0 ? exemptMembers.map((m,i) => {
+    const bg = i % 2 === 0 ? '#f0f5ff' : '#e8f0ff';
+    return `<tr style="background:${bg}">
+      <td style="padding:5px 8px;font-size:12px;color:#aaa;text-align:center">—</td>
+      <td style="padding:5px 8px;font-size:13px;color:#555">${m.name}${m.category==='家族会員'?'<span style="font-size:10px;margin-left:4px;padding:1px 5px;background:#f0e8d0;color:#7a5c00;border-radius:3px">家族</span>':''}</td>
+      <td style="padding:5px 8px;font-size:12px;color:#888">${m.org || '—'}</td>
+      <td style="padding:5px 8px;text-align:center"><span style="display:inline-block;padding:2px 10px;background:#dceeff;color:#2255aa;border-radius:4px;font-size:11px;font-weight:600">免除</span></td>
+    </tr>`;
+  }).join('') : '';
+
+  // 全年度サマリー行
+  const yearSummaryRows = allYears.map(y => {
+    const yd = DB.fees[y] || {};
+    const p = allMembers.filter(m => yd[m.name] === '〇').length;
+    const u = allMembers.length - p;
+    const pct = Math.round(p / allMembers.length * 100);
+    const barW = pct;
+    return `<tr>
+      <td style="padding:6px 10px;font-weight:700;font-size:13px">${y}年度</td>
+      <td style="padding:6px 10px;font-size:13px;color:#1a6b35;font-weight:700">${p}名</td>
+      <td style="padding:6px 10px;font-size:13px;color:#a02020">${u}名</td>
+      <td style="padding:6px 10px">
+        <div style="background:#eee;border-radius:4px;height:10px;width:150px;overflow:hidden">
+          <div style="background:#4caf7d;height:100%;width:${barW}%;border-radius:4px"></div>
+        </div>
+        <span style="font-size:11px;color:#666;margin-left:6px">${pct}%</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<title>会費納入状況 ${currentFeeYear}年度</title>
+<style>
+  @media print {
+    html, body { margin:0 !important; padding:0 !important; }
+    .no-print { display:none !important; }
+    @page { margin:6mm 8mm !important; size:A4; }
+    .page { padding:4mm 5mm !important; max-width:100% !important; }
+    thead { display:table-header-group; }
+    tr { break-inside:avoid; }
+    .section { break-inside:avoid; }
+  }
+  * { box-sizing:border-box; }
+  body { font-family:'Noto Sans JP','Hiragino Sans','Yu Gothic',sans-serif; margin:0; background:#fff; color:#222; font-size:12px; }
+  .page { max-width:740px; margin:0 auto; padding:16px 20px; }
+  .header-bar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; padding-bottom:10px; border-bottom:3px solid #1a1a2e; }
+  .title-main { font-size:20px; font-weight:700; color:#1a1a2e; }
+  .title-sub { font-size:11px; color:#888; margin-top:3px; }
+  .meta { text-align:right; font-size:11px; color:#999; line-height:1.8; }
+  .summary-cards { display:flex; gap:12px; margin-bottom:16px; }
+  .card { flex:1; border-radius:8px; padding:10px 14px; text-align:center; }
+  .card-paid { background:#d4edda; }
+  .card-unpaid { background:#fde8e8; }
+  .card-total { background:#f0f0f5; }
+  .card-num { font-size:28px; font-weight:700; line-height:1; }
+  .card-paid .card-num { color:#1a6b35; }
+  .card-unpaid .card-num { color:#a02020; }
+  .card-total .card-num { color:#333; }
+  .card-label { font-size:11px; color:#666; margin-top:4px; }
+  .section { margin-bottom:20px; }
+  .section-title { font-size:12px; font-weight:700; color:#555; letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:8px; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#1a1a2e; color:#fff; padding:6px 8px; font-size:11px; font-weight:600; text-align:left; }
+  .print-btn { position:fixed; bottom:20px; right:20px; padding:10px 22px; background:#1a1a2e; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; }
+</style>
+</head><body>
+<div class="page">
+  <div class="header-bar">
+    <div>
+      <div class="title-main">💴 会費納入状況　${currentFeeYear}年度</div>
+      <div class="title-sub">PIRIRI MEMBERS CLUB — 会費管理レポート</div>
+    </div>
+    <div class="meta">出力日：${dateStr}<br>対象：${allMembers.length}名</div>
+  </div>
+
+  <div class="summary-cards">
+    <div class="card card-paid"><div class="card-num">${paid}</div><div class="card-label">納入済</div></div>
+    <div class="card card-unpaid"><div class="card-num">${unpaid}</div><div class="card-label">未納 / 未登録</div></div>
+    <div class="card card-total"><div class="card-num">${Math.round(paid/Math.max(targetMembers.length,1)*100)}%</div><div class="card-label">納入率</div></div>
+    ${exemptMembers.length > 0 ? `<div class="card" style="background:#dceeff"><div class="card-num" style="color:#2255aa">${exemptMembers.length}</div><div class="card-label">会費免除</div></div>` : ''}
+  </div>
+
+  ${allYears.length > 1 ? `
+  <div class="section">
+    <div class="section-title">年度別サマリー</div>
+    <table>
+      <thead><tr><th>年度</th><th>納入済</th><th>未納</th><th>納入率</th></tr></thead>
+      <tbody>${yearSummaryRows}</tbody>
+    </table>
+  </div>` : ''}
+
+  <div class="section">
+    <div class="section-title">${currentFeeYear}年度　会員別納入状況（対象${targetMembers.length}名）</div>
+    <table>
+      <thead><tr>
+        <th style="width:30px">#</th>
+        <th style="width:160px">氏名</th>
+        <th>所属</th>
+        <th style="width:110px;text-align:center">納入状況</th>
+      </tr></thead>
+      <tbody>${rows}${exemptRows}</tbody>
+    </table>
+  </div>
+  <div style="font-size:10px;color:#bbb;text-align:right;margin-top:10px">ピリリメンバーズクラブ 事務局</div>
+</div>
+<button class="print-btn no-print" onclick="window.print()">🖨️ 印刷 / PDF保存</button>
+</body></html>`;
+
+  showPdfPreview(html, currentFeeYear + '年度 会費納入状況');
+}
+
+function setFee(name, val) {
+  if (!DB.fees[currentFeeYear]) DB.fees[currentFeeYear] = {};
+  if (DB.fees[currentFeeYear][name] === val) {
+    // 同じボタンを押したらリセット
+    delete DB.fees[currentFeeYear][name];
+  } else {
+    DB.fees[currentFeeYear][name] = val;
+  }
+  autoSave();
+  renderFeeTable();
+  renderFeeYearTabs();
+}
+
+// ===== INIT =====
+// Firebase連携スクリプトから参照できるよう、変数・関数を window に公開
+window.DB = DB;
+window.EVENT_META = EVENT_META;
+window.DRIVE_EVENTS = DRIVE_EVENTS;
+window.filterMembers = filterMembers;
+window.initEventSelect = initEventSelect;
+window.renderFeeTable = renderFeeTable;
+window.renderFeeYearTabs = renderFeeYearTabs;
+
+// 初回描画（Firestoreからのデータ受信前に、内蔵の初期データで描画）
+filterMembers();
+initEventSelect();
+</script>
+
+<!-- ===================== Firebase 連携 ===================== -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, onSnapshot, getDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+// ★★★ Firebase 設定（Firebase コンソールから取得した値） ★★★
+const firebaseConfig = {
+  apiKey: "AIzaSyBmsl8JeuEglJKIdU5_lDcqDkk0nxLCMJc",
+  authDomain: "piriri-members.firebaseapp.com",
+  projectId: "piriri-members",
+  storageBucket: "piriri-members.firebasestorage.app",
+  messagingSenderId: "420912189594",
+  appId: "1:420912189594:web:62403189445b2e7a3e4f23"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// データ保存先: piriri / main の単一ドキュメント
+const DB_DOC = doc(db, "piriri", "main");
+
+// 同期状態の管理
+const indicator = document.getElementById('syncIndicator');
+const setIndicator = (cls, text) => {
+  if (!indicator) return;
+  indicator.className = 'sync-indicator ' + cls;
+  indicator.textContent = text;
+};
+
+// 自分が今書き込んだ直後の onSnapshot コールバックを無視するためのフラグ
+let suppressNextSnapshot = false;
+// Firestoreから初回データを受け取ったかどうか
+let hasReceivedInitial = false;
+// 書き込み中フラグ（並列書き込みの防止）
+let isWriting = false;
+
+// EVENT_META を DB.events から再構築（初期化スクリプト内のロジックを再利用）
+function rebuildEventMeta() {
+  const meta = {};
+  (window.DB.events || []).forEach(e => {
+    if (window.DRIVE_EVENTS && window.DRIVE_EVENTS.has(e)) meta[e] = 'drive';
+    else if (['3/29　振込','3/29　入金','2023　会費','2024　会費'].includes(e)) meta[e] = 'money';
+    else meta[e] = 'normal';
+  });
+  window.EVENT_META = meta;
+}
+
+// Firestoreから受信したデータでローカルのDBを更新する
+// 重要：参照は変えずに中身だけ入れ替える（メインスクリプトの`let DB`が古い参照にならないように）
+function applyRemotePayload(payload) {
+  if (!window.DB) return;
+  // 既存オブジェクトのキーを全て削除してから新しい値を入れる
+  for (const k of Object.keys(window.DB)) {
+    delete window.DB[k];
+  }
+  for (const k of Object.keys(payload)) {
+    window.DB[k] = payload[k];
+  }
+  if (!window.DB.fees) window.DB.fees = {};
+  if (!window.DB.events) window.DB.events = [];
+  rebuildEventMeta();
+}
+
+// ---------- Firestore → ローカル ----------
+// リアルタイム購読：他のデバイスでの変更を即座に反映
+onSnapshot(DB_DOC, (snap) => {
+  // 自分が書き込んだ直後のスナップショットはスキップ
+  if (suppressNextSnapshot) {
+    suppressNextSnapshot = false;
+    return;
+  }
+
+  if (snap.exists()) {
+    const data = snap.data();
+    if (data && data.payload && data.payload.members) {
+      // ローカルの DB を中身ごと差し替え（参照は維持）
+      applyRemotePayload(data.payload);
+
+      // 画面再描画
+      try { window.filterMembers && window.filterMembers(); } catch(e) {}
+      try { window.initEventSelect && window.initEventSelect(); } catch(e) {}
+      try { window.renderFeeTable && window.renderFeeTable(); } catch(e) {}
+      try { window.renderFeeYearTabs && window.renderFeeYearTabs(); } catch(e) {}
+
+      const ts = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate() : new Date();
+      setIndicator('synced', '☁️ 同期済み ' + ts.toLocaleTimeString('ja-JP'));
+      const el = document.getElementById('saveStatus');
+      if (el && hasReceivedInitial) {
+        el.textContent = '🔄 他のデバイスで変更がありました（' + ts.toLocaleString('ja-JP') + '）';
+      }
+    }
+  } else {
+    // ドキュメントがまだ存在しない場合：内蔵の初期データを最初に送り込む
+    console.log('Firestoreにデータがないので、初期データをアップロードします');
+    saveToFirestore(true, true);
+  }
+
+  hasReceivedInitial = true;
+}, (err) => {
+  console.error('Firestore onSnapshot error:', err);
+  setIndicator('error', '❌ 接続エラー');
+  const el = document.getElementById('saveStatus');
+  if (el) el.textContent = '❌ Firebase接続エラー: ' + err.message;
+});
+
+// ---------- ローカル → Firestore ----------
+async function saveToFirestore(showStatus, isInitialUpload) {
+  if (isWriting) return;
+  isWriting = true;
+  setIndicator('saving', '💾 保存中...');
+
+  try {
+    suppressNextSnapshot = true; // 直後のスナップショットを無視
+    await setDoc(DB_DOC, {
+      payload: window.DB,
+      updatedAt: serverTimestamp()
+    });
+
+    const now = new Date();
+    setIndicator('synced', '☁️ 同期済み ' + now.toLocaleTimeString('ja-JP'));
+    if (showStatus) {
+      const el = document.getElementById('saveStatus');
+      if (el) {
+        el.textContent = (isInitialUpload ? '✅ 初期データをアップロードしました（' : '✅ 保存しました（')
+          + now.toLocaleString('ja-JP') + '）';
+      }
+    }
+  } catch (e) {
+    console.error('saveToFirestore error:', e);
+    setIndicator('error', '❌ 保存失敗');
+    suppressNextSnapshot = false;
+    const el = document.getElementById('saveStatus');
+    if (el) el.textContent = '❌ 保存に失敗しました: ' + e.message;
+  } finally {
+    isWriting = false;
+  }
+}
+
+// ---------- 手動再読み込み ----------
+async function loadFromFirestore() {
+  setIndicator('saving', '🔄 読み込み中...');
+  try {
+    const snap = await getDoc(DB_DOC);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data && data.payload && data.payload.members) {
+        applyRemotePayload(data.payload);
+        try { window.filterMembers && window.filterMembers(); } catch(e) {}
+        try { window.initEventSelect && window.initEventSelect(); } catch(e) {}
+        try { window.renderFeeTable && window.renderFeeTable(); } catch(e) {}
+        try { window.renderFeeYearTabs && window.renderFeeYearTabs(); } catch(e) {}
+
+        const ts = data.updatedAt && data.updatedAt.toDate ? data.updatedAt.toDate() : new Date();
+        setIndicator('synced', '☁️ 同期済み ' + ts.toLocaleTimeString('ja-JP'));
+        const el = document.getElementById('saveStatus');
+        if (el) el.textContent = '✅ 再読み込みしました（' + ts.toLocaleString('ja-JP') + '）';
+      }
+    } else {
+      const el = document.getElementById('saveStatus');
+      if (el) el.textContent = 'クラウドにデータがありません';
+    }
+  } catch (e) {
+    console.error('loadFromFirestore error:', e);
+    setIndicator('error', '❌ 読み込み失敗');
+    const el = document.getElementById('saveStatus');
+    if (el) el.textContent = '❌ 読み込みに失敗しました: ' + e.message;
+  }
+}
+
+// グローバル公開（既存コードから呼べるように）
+window.saveToFirestore = saveToFirestore;
+window.loadFromFirestore = loadFromFirestore;
+</script>
+</body>
+</html>
