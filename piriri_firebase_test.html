@@ -864,6 +864,20 @@ const firebaseConfig = {
 };
    const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const DATA_REF = doc(db, "piriri", "main");
+
+window.manualSave = async function(){
+  try {
+    await setDoc(DATA_REF, {
+      evs: evs,
+      mb: MB,
+      updatedAt: new Date().toISOString()
+    });
+    alert("Firebaseに保存しました");
+  } catch(e){
+    alert("保存失敗：" + e.message);
+  }
+};
 </script>
 </body>
 </html>
