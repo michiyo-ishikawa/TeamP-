@@ -236,30 +236,6 @@ var nextId=10000;
 function e(s){return(s||"").replace(/&/g,"&").replace(/</g,"<").replace(/>/g,">");}
 function rc(r){return r>=70?"rh":r>=40?"rm":r>0?"rl":"rz";}
 
-関数 tst(m){
-  var el=document.getElementById("tst");
-  el.textContent=m;el.classList.add("on");
-  setTimeout(function(){el.classList.remove("on");},2400);
-}
-
-function setSyncStatus(state, text){
-  var b=document.getElementById("sync-badge");
-  if(!b)return;
-  b.className="sync-status "+state;
-  b.textContent=テキスト;
-}
-
-関数 gt(n){
-  for(var i=0;i<4;i++){
-    var pg=document.getElementById("pg"+i);
-    if(pg)pg.classList.toggle("on",i===n);
-    var tb=document.querySelectorAll(".tab")[i];
-    if(tb)tb.classList.toggle("on",i===n);
-  }
-  if(n===1)rMbrs();
-  if(n===3)rMgmt();
-}
-
 function uhdr(){
   var fut=evs.filter(function(ev){return isFut(ev.date);}).length;
   document.getElementById("hs").textContent="メンバー"+MB.length+"名 / "+evs.length+"回（予定"+fut+"件）";
