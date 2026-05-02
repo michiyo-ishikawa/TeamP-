@@ -138,8 +138,7 @@ input[type="date"]{color-scheme:light}
 <div class="ec" style="border-color:var(--ac3);background:rgba(26,122,58,.05)">
   <div class="et">☁ クラウド同期 状態</div>
   <div class="ed" id="cloud-status">確認中...</div>
-  <button class="eb" onclick="gasLoad()" style="opacity:.85">🔄 クラウドから再読み込み</button>
-  <button class="eb" onclick="gasSaveSilent(true)" style="margin-top:6px;background:var(--ac3)">☁ クラウドに今すぐ保存</button>
+
 </div>
 
 <div class="ec" style="border-color:var(--ac);background:rgba(201,169,110,.04)">
@@ -209,8 +208,7 @@ input[type="date"]{color-scheme:light}
 // =============================================================
 // ★★★ クラウド同期設定（GAS URL を埋め込み済み）★★★
 // =============================================================
-var GAS_URL = "https://script.google.com/macros/s/AKfycbzOd_Tm6739Fteund-p8KP69binnFwBV5jhkRio6w8Im6v00Wjyhb9Mgr55Wqy8W7Yrow/exec";
-var GAS_ENABLED = true;
+
 // =============================================================
 
 var LS_KEY = "piriri_v1";
@@ -622,114 +620,21 @@ function persist(){
   var json=JSON.stringify(snapshot);
   if(canLS()){try{localStorage.setItem(LS_KEY,json);}catch(ex){}}
   // クラウド送信は1.5秒遅延（連続編集を1回にまとめる）
-  if(GAS_ENABLED && GAS_URL){
-    if(saveTimer)clearTimeout(saveTimer);
-    saveTimer=setTimeout(function(){gasSaveSilent(false);},1500);
-  }
-}
+  
 
 // クラウドに保存
-function gasSaveSilent(showToast){
-  if(!GAS_ENABLED || !GAS_URL)return;
-  setSyncStatus("busy", "☁ 同期中");
-  var payload={action:"saveAll",evs:evs,mb:MB.filter(function(m){return m.id>=10000;})};
-  fetch(GAS_URL, {
-    method: "POST",
-    body: JSON.stringify(payload),
-    headers: {"Content-Type": "text/plain;charset=utf-8"}
-  })
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.ok){
-        var t=new Date();
-        var hh=String(t.getHours()).padStart(2,"0");
-        var mm=String(t.getMinutes()).padStart(2,"0");
-        setSyncStatus("ok", "✓ "+hh+":"+mm);
-        if(showToast)tst("☁ クラウドに保存しました");
-      } else {
-        setSyncStatus("ng", "⚠ 同期失敗");
-        if(showToast)tst("クラウド保存失敗: "+(d.error||""));
-      }
-    })
+
     .catch(function(ex){
       setSyncStatus("ng", "⚠ オフライン");
       if(showToast)tst("保存失敗: "+ex);
     });
-}
 
-// クラウドから読み込み（POSTで送ることでCORSプリフライトを回避）
-function gasLoad(){
-  if(!GAS_ENABLED || !GAS_URL){tst("GAS未設定");return;}
-  setSyncStatus("busy", "☁ 読込中");
-  isLoading=true;
-  fetch(GAS_URL, {
-    method: "POST",
-    body: JSON.stringify({action: "load"}),
-    headers: {"Content-Type": "text/plain;charset=utf-8"}
-  })
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.error){
-        setSyncStatus("ng", "⚠ "+d.error);
-        tst("GASエラー: "+d.error);
-        isLoading=false;
-        return;
-      }
-      // クラウドにデータが存在する場合のみ上書き
-      if(d.evs && Array.isArray(d.evs) && d.evs.length>0){
-        evs=d.evs.map(function(ev){
-          // mids が文字列で来た場合、配列にパース
-          if(typeof ev.mids==="string"){try{ev.mids=JSON.parse(ev.mids);}catch(ex){ev.mids=[];}}
-          if(!Array.isArray(ev.mids))ev.mids=[];
-          // ID を数値に正規化
-          ev.mids=ev.mids.map(function(x){var n=parseInt(x);return isNaN(n)?x:n;});
-          return ev;
-        });
-        evs.sort(function(a,b){var ia=toISO(a.date),ib=toISO(b.date);return ia>ib?-1:ia<ib?1:0;});
-      }
-      if(d.mb && Array.isArray(d.mb)){
-        // ID 10000以上のメンバー（=ユーザー追加分）だけ削除して、クラウドから来たものを追加
-        MB=MB.filter(function(m){return m.id<10000;});
-        for(var i=0;i<d.mb.length;i++){
-          var _a=d.mb[i];
-          // 配列フィールドのパース
-          if(typeof _a.att==="string"){try{_a.att=JSON.parse(_a.att);}catch(ex){_a.att=[];}}
-          if(!Array.isArray(_a.att))_a.att=[];
-          if(parseInt(_a.id)>=nextId)nextId=parseInt(_a.id)+1;
-          MB.push(_a);
-        }
-      }
-      // 出席数の再計算
-      var cx={};
-      for(var i=0;i<evs.length;i++){var em=evs[i].mids||[];for(var k=0;k<em.length;k++)cx[em[k]]=(cx[em[k]]||0)+1;}
-      for(var i=0;i<MB.length;i++){MB[i].cnt=cx[MB[i].id]||0;MB[i].rate=evs.length?Math.round(MB[i].cnt/evs.length*100):0;}
-      uhdr();rEvList();
-      var t=new Date();
-      var hh=String(t.getHours()).padStart(2,"0");
-      var mm=String(t.getMinutes()).padStart(2,"0");
-      setSyncStatus("ok", "✓ "+hh+":"+mm);
-      updateCloudStatus();
-      isLoading=false;
-      tst("☁ クラウドから読み込みました");
-    })
-    .catch(function(ex){
-      setSyncStatus("ng", "⚠ 接続失敗");
-      tst("読み込み失敗: "+ex);
-      isLoading=false;
-    });
-}
 
-function manualSave(){gasSaveSilent(true);}
 
 function updateCloudStatus(){
   var el=document.getElementById("cloud-status");
   if(!el)return;
-  if(GAS_ENABLED){
-    el.innerHTML="✅ クラウド同期 <strong>有効</strong><br><span style='font-size:10px;color:var(--mt);word-break:break-all'>"+GAS_URL.slice(0,60)+"...</span>";
-  } else {
-    el.textContent="⚠ クラウド同期 無効（ローカルのみ）";
-  }
-}
+  
 
 // バックアップ機能（ローカル保存のみ）
 function copyBackup(){
@@ -944,13 +849,21 @@ function closePop(){document.getElementById("popover").style.display="none";}
   rEvList();
   updateCloudStatus();
   // クラウドが有効なら、起動時に自動でクラウドから読み込み
-  if(GAS_ENABLED && GAS_URL){
-    setTimeout(function(){gasLoad();},200);
-  } else {
-    setSyncStatus("ng", "ローカルのみ");
-  }
+  
 })();
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyBvdVQRTS3IDMTwlnbsDU5kFyzr3RveR28",
+  authDomain: "piriritsc.firebaseapp.com",
+  projectId: "piriritsc",
+  storageBucket: "piriritsc.firebasestorage.app",
+  messagingSenderId: "97279331507",
+  appId: "1:97279331507:web:7944ef27747b026599b4c6"
+};
+   const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 </script>
-
 </body>
 </html>
