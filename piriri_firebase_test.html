@@ -866,6 +866,22 @@ const firebaseConfig = {
   const db = getFirestore(app);
   const DATA_REF = doc(db, "piriri", "main");
 
+  (async () => {
+  try {
+    const snap = await getDoc(DATA_REF);
+    if (snap.exists()) {
+      const d = snap.data();
+      evs = d.evs || [];
+      MB = d.mb || [];
+      rEvList(); 
+      tst("クラウドから読み込み完了");
+        } else {
+      tst("クラウドにデータなし");
+    }
+  } catch (e) {
+    tst("クラウド読込失敗: " + e.message);
+  }
+})();
 window.manualSave = async function(){
   try {
     await setDoc(DATA_REF, {
