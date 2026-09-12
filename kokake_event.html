@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="声掛け管理">
+<title>イベント声掛け・出欠管理</title>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<!-- Excel読込用（CSV/Excel読込・貼り付け読込機能で使用） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Excel出力用（A4縦・余白最小・行間などのページ設定を確実に反映するため） -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+
+<style>
+  :root{
+    --main:#2c6e6b;
+    --main-dark:#1f4f4d;
+    --accent:#e07a3f;
+    --bg:#f4f6f5;
+    --card:#ffffff;
+    --border:#dde3e1;
+    --text:#25302e;
+    --muted:#78857f;
+    --danger:#c0453a;
+    --ok:#2c7a3d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+    background:var(--bg); color:var(--text); padding-bottom:70px;
+  }
+  header{
+    background:linear-gradient(135deg,var(--main),var(--main-dark));
+    color:#fff; padding:16px 16px 12px; position:sticky; top:0; z-index:50;
+  }
+  header h1{margin:0; font-size:18px; font-weight:700;}
+  header .sub{font-size:11px; opacity:.85; margin-top:2px;}
+  #syncStatus{font-size:11px; margin-top:6px; display:inline-block; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,.15);}
+  #syncStatus.saving{background:rgba(255,200,0,.3);}
+  #syncStatus.error{background:rgba(255,80,80,.4);}
+
+  nav.tabs{
+    display:flex; background:#fff; border-bottom:1px solid var(--border);
+    position:sticky; top:64px; z-index:49;
+  }
+  nav.tabs button{
+    flex:1; padding:12px 4px; border:none; background:none; font-size:13px;
+    color:var(--muted); font-weight:600; border-bottom:3px solid transparent; cursor:pointer;
+  }
+  nav.tabs button.active{ color:var(--main); border-bottom-color:var(--main); }
+
+  main{padding:12px;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; align-items:center;}
+  .toolbar input[type=text], .toolbar input[type=search]{
+    flex:1; min-width:140px; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px;
+  }
+  select{padding:8px; border:1px solid var(--border); border-radius:8px; font-size:13px; background:#fff;}
+  .btn{
+    background:var(--main); color:#fff; border:none; padding:9px 14px; border-radius:8px;
+    font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .btn.secondary{background:#fff; color:var(--main); border:1px solid var(--main);}
+  .btn.danger{background:var(--danger);}
+  .btn.small{padding:5px 10px; font-size:12px;}
+  .btn.accent{background:var(--accent);}
+  .btn:disabled{opacity:.5;}
+
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; margin-bottom:10px;
+  }
+  .card h3{margin:0 0 4px; font-size:15px;}
+  .card .meta{font-size:12px; color:var(--muted); line-height:1.6;}
+  .tag{display:inline-block; font-size:11px; padding:2px 8px; border-radius:10px; margin-right:4px; margin-top:4px;}
+  .tag.org{background:#e8f2f0; color:var(--main-dark);}
+  .tag.count{background:#fbeee3; color:#a24d1e;}
+  .tag.attend{background:#e6f4e9; color:var(--ok);}
+  .tag.noattend{background:#fdeceb; color:var(--danger);}
+
+  .empty{text-align:center; color:var(--muted); padding:40px 10px; font-size:14px;}
+
+  /* modal */
+  .modal-bg{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:100;
+    align-items:flex-end; justify-content:center;
+  }
+  .modal-bg.active{display:flex;}
+  .modal{
+    background:#fff; width:100%; max-width:520px; max-height:92vh; overflow-y:auto;
+    border-radius:16px 16px 0 0; padding:18px 16px 24px; animation:slideup .18s ease-out;
+  }
+  @media(min-width:600px){
+    .modal-bg{align-items:center;}
+    .modal{border-radius:16px; max-height:88vh;}
+  }
+  @keyframes slideup{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .modal h2{margin:0 0 14px; font-size:17px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px; font-weight:600;}
+  .field input[type=text], .field input[type=date], .field textarea, .field select{
+    width:100%; padding:9px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit;
+  }
+  .field textarea{resize:vertical; min-height:50px;}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .modal-actions{display:flex; gap:8px; margin-top:16px;}
+  .modal-actions .btn{flex:1;}
+  .close-x{position:absolute; top:14px; right:14px; background:none; border:none; font-size:20px; color:var(--muted); cursor:pointer;}
+  .modal{position:relative;}
+
+  /* participant selection */
+  .plist{border:1px solid var(--border); border-radius:10px; max-height:340px; overflow-y:auto;}
+  .prow{padding:10px; border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:flex-start;}
+  .prow:last-child{border-bottom:none;}
+  .prow input[type=checkbox]{margin-top:4px; width:18px; height:18px;}
+  .prow .pinfo{flex:1;}
+  .prow .pname{font-weight:600; font-size:14px;}
+  .prow .pmeta{font-size:11px; color:var(--muted);}
+  .pdetail{margin-top:8px; padding:10px; background:#f8faf9; border-radius:8px; display:none;}
+  .pdetail.open{display:block;}
+  .pdetail .row2{grid-template-columns:1fr 1fr;}
+  .pdetail .field{margin-bottom:8px;}
+  .pdetail label{font-size:11px;}
+
+  .fab{
+    position:fixed; right:18px; bottom:24px; width:54px; height:54px; border-radius:50%;
+    background:var(--accent); color:#fff; font-size:26px; border:none; box-shadow:0 4px 12px rgba(0,0,0,.25);
+    cursor:pointer; z-index:40; line-height:54px; text-align:center;
+  }
+
+  #toast{
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+    background:#333; color:#fff; padding:9px 18px; border-radius:20px; font-size:13px;
+    opacity:0; pointer-events:none; transition:opacity .25s; z-index:200;
+  }
+  #toast.show{opacity:1;}
+
+  .export-section{margin-bottom:18px;}
+  .export-section h3{font-size:14px; margin-bottom:8px;}
+  .export-buttons{display:flex; gap:8px; flex-wrap:wrap;}
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>イベント声掛け・出欠管理</h1>
+  <div class="sub">主旨・メンバーが異なるイベントの基本情報と声掛け選定用データを管理</div>
+  <span id="syncStatus">同期待機中…</span>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="events">① イベント</button>
+  <button class="tab-btn" data-tab="members">② メンバー</button>
+  <button class="tab-btn" data-tab="export">③ 出力</button>
+</nav>
+
+<main>
+
+  <!-- ===== イベント タブ ===== -->
+  <section id="tab-events" class="panel active">
+    <div class="toolbar">
+      <input type="search" id="eventSearch" placeholder="イベント名・主催・主旨で検索">
+    </div>
+    <div id="eventList"></div>
+  </section>
+
+  <!-- ===== メンバー タブ ===== -->
+  <section id="tab-members" class="panel">
+    <div class="toolbar">
+      <input type="search" id="memberSearch" placeholder="氏名・所属・業種で検索">
+      <input type="file" id="memberImportFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleMemberImport(event)">
+      <button class="btn secondary small" onclick="document.getElementById('memberImportFile').click()">CSV/Excel読込</button>
+      <button class="btn secondary small" onclick="openPasteImportModal()">貼り付けて読込</button>
+    </div>
+    <div class="toolbar">
+      <select id="filterOrg"><option value="">所属：すべて</option></select>
+      <select id="filterIndustry"><option value="">業種：すべて</option></select>
+      <select id="filterAge"><option value="">年代：すべて</option></select>
+      <select id="filterHistory">
+        <option value="">参加履歴：すべて</option>
+        <option value="has">参加あり</option>
+        <option value="none">参加なし（未声掛け候補）</option>
+      </select>
+    </div>
+    <div id="memberList"></div>
+  </section>
+
+  <!-- ===== 出力 タブ ===== -->
+  <section id="tab-export" class="panel">
+    <div class="export-section card">
+      <h3>メンバー名簿</h3>
+      <div class="export-buttons">
+        <button class="btn" onclick="exportMembersExcel()">Excel出力</button>
+        <button class="btn secondary" onclick="printMembers()">印刷 / PDF保存</button>
+      </div>
+    </div>
+    <div class="export-section card">
+      <h3>イベント一覧（全件・シリーズ横断）</h3>
+      <div class="export-buttons">
+        <button class="btn" onclick="exportAllEventsExcel()">Excel出力（イベント別シート付き）</button>
+      </div>
+    </div>
+    <div class="export-section card">
+      <h3>特定イベントの参加者リスト</h3>
+      <div class="field">
+        <select id="exportEventSelect"></select>
+      </div>
+      <div class="meta" style="margin-bottom:6px;">絞り込み（未選択＝すべて出力）</div>
+      <div class="toolbar">
+        <select id="exportFilterOrg"><option value="">所属：すべて</option></select>
+        <select id="exportFilterAge"><option value="">年代：すべて</option></select>
+        <select id="exportFilterGender"><option value="">性別：すべて</option></select>
+      </div>
+      <div class="toolbar">
+        <select id="exportFilterAttendance">
+          <option value="">出欠：すべて</option>
+          <option value="undecided">未定</option>
+          <option value="〇 出席">出席</option>
+          <option value="× 欠席">欠席</option>
+        </select>
+      </div>
+      <div class="export-buttons">
+        <button class="btn" onclick="exportSingleEventExcel()">Excel出力</button>
+        <button class="btn secondary" onclick="printSingleEvent()">印刷 / PDF保存</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<button class="fab" id="fabAdd">＋</button>
+
+<div id="toast"></div>
+
+<!-- ===== イベント編集モーダル ===== -->
+<div class="modal-bg" id="eventModalBg">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('eventModalBg')">×</button>
+    <h2 id="eventModalTitle">新規イベント</h2>
+    <input type="hidden" id="eventId">
+    <div class="field"><label>イベント名 *</label><input type="text" id="eventName"></div>
+    <div class="row2">
+      <div class="field"><label>開催日</label><input type="date" id="eventDate"></div>
+      <div class="field"><label>開始時間</label><input type="time" id="eventStartTime"></div>
+    </div>
+    <div class="field"><label>場所</label><input type="text" id="eventVenue"></div>
+    <div class="field"><label>主催</label><input type="text" id="eventOrganizer"></div>
+    <div class="field"><label>主旨・目的</label><textarea id="eventPurpose"></textarea></div>
+    <div class="field"><label>メモ</label><textarea id="eventMemo"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn danger" id="eventDeleteBtn" style="display:none;" onclick="deleteEvent()">削除</button>
+      <button class="btn" onclick="saveEvent()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== イベント詳細（声掛け選定・出欠管理）モーダル ===== -->
+<div class="modal-bg" id="eventDetailModalBg">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('eventDetailModalBg')">×</button>
+    <h2 id="eventDetailTitle">イベント詳細</h2>
+    <div class="meta" id="eventDetailMeta" style="margin-bottom:10px;"></div>
+    <button class="btn secondary small" onclick="editCurrentEventInfo()">基本情報を編集</button>
+    <hr style="margin:14px 0; border:none; border-top:1px solid var(--border);">
+    <div class="toolbar">
+      <input type="search" id="detailMemberSearch" placeholder="メンバーを検索して声掛け対象に追加">
+    </div>
+    <div class="toolbar">
+      <select id="detailFilterOrg"><option value="">所属：すべて</option></select>
+      <select id="detailFilterAge"><option value="">年代：すべて</option></select>
+      <select id="detailFilterGender"><option value="">性別：すべて</option></select>
+    </div>
+    <div class="toolbar">
+      <select id="detailFilterInvited">
+        <option value="">声掛け：すべて</option>
+        <option value="invited">声掛け対象</option>
+        <option value="notInvited">未声掛け</option>
+      </select>
+      <select id="detailFilterAttendance">
+        <option value="">出欠：すべて</option>
+        <option value="undecided">未定</option>
+        <option value="〇 出席">出席</option>
+        <option value="× 欠席">欠席</option>
+      </select>
+    </div>
+    <div class="plist" id="detailPlist"></div>
+  </div>
+</div>
+
+<!-- ===== 貼り付け読込モーダル ===== -->
+<div class="modal-bg" id="pasteImportModalBg">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('pasteImportModalBg')">×</button>
+    <h2>クリップボードから貼り付けて読込</h2>
+    <div class="meta" style="margin-bottom:10px;">
+      TeamP会アプリなどでCSVをコピーした内容を、下の欄に貼り付けてください（ファイル保存は不要です）。
+    </div>
+    <div class="field">
+      <textarea id="pasteImportText" style="min-height:220px; font-family:monospace; font-size:12px;" placeholder="ここに貼り付け（Ctrl+V / スマホなら長押しして「ペースト」）"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="submitPasteImport()">読み込む</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== メンバー編集モーダル ===== -->
+<div class="modal-bg" id="memberModalBg">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('memberModalBg')">×</button>
+    <h2 id="memberModalTitle">新規メンバー</h2>
+    <div class="meta" id="memberNoDisplay" style="margin-bottom:10px;"></div>
+    <input type="hidden" id="memberId">
+    <div class="field"><label>氏名 *</label><input type="text" id="memberName"></div>
+    <div class="field"><label>所属</label><input type="text" id="memberOrg"></div>
+    <div class="row2">
+      <div class="field"><label>業種</label><input type="text" id="memberIndustry"></div>
+      <div class="field"><label>年代</label>
+        <select id="memberAge">
+          <option value=""></option>
+          <option>20代</option><option>30代</option><option>40代</option>
+          <option>50代</option><option>60代</option><option>70代以上</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>性別</label>
+        <select id="memberGender"><option value=""></option><option>女性</option><option>男性</option><option>その他</option></select>
+      </div>
+      <div class="field"><label>お酒</label>
+        <select id="memberDrink"><option value=""></option><option>〇 飲む</option><option>× 飲まない</option><option>不明</option></select>
+      </div>
+    </div>
+    <div class="field"><label>連絡先（TEL / メール）</label><input type="text" id="memberContact"></div>
+    <div class="field"><label>紹介者・声掛け経路</label><input type="text" id="memberReferrer"></div>
+    <div class="field"><label>備考（アレルギー・嗜好など）</label><textarea id="memberNote"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn danger" id="memberDeleteBtn" style="display:none;" onclick="deleteMember()">削除</button>
+      <button class="btn" onclick="saveMember()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================
+   Firebase設定
+   ========================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyBmsl8JeuEglJKIdU5_lDcqDkk0nxLCMJc",
+  authDomain: "piriri-members.firebaseapp.com",
+  projectId: "piriri-members",
+  storageBucket: "piriri-members.firebasestorage.app",
+  messagingSenderId: "420912189594",
+  appId: "1:420912189594:web:0950020a601232ad3e4f23"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+// このアプリ専用のコレクション/ドキュメント（他アプリのデータとは独立）
+const docRef = db.collection('eventAttendance').doc('main');
+
+let appState = { members: [], events: [] };
+let isRemoteUpdate = false;
+let currentEventId = null; // イベント詳細モーダルで開いているイベント
+
+function setStatus(text, cls){
+  const el = document.getElementById('syncStatus');
+  el.textContent = text;
+  el.className = cls || '';
+}
+
+// ---------- Firestore リアルタイム同期 ----------
+docRef.onSnapshot((doc) => {
+  if(doc.exists){
+    appState = doc.data();
+    appState.members = appState.members || [];
+    appState.events = appState.events || [];
+  } else {
+    appState = { members: [], events: [] };
+    docRef.set(appState);
+  }
+  setStatus('同期済み ✓');
+  const assigned = assignMemberNumbers();
+  renderAll();
+  if(assigned) saveState(); // 未採番メンバーがいた場合のみ、番号を付与して保存し直す
+}, (err) => {
+  console.error(err);
+  setStatus('同期エラー：Firebase設定を確認してください', 'error');
+});
+
+// 会員IDがまだ振られていないメンバーに、登録順（createdAt昇順）で連番を割り当てる
+// 会員IDは、配列内の並び順（＝登録順）に沿って常に1から振り直す
+function assignMemberNumbers(){
+  let changed = false;
+  appState.members.forEach((m, i)=>{
+    const newNo = i + 1;
+    if(m.memberNo !== newNo){ m.memberNo = newNo; changed = true; }
+  });
+  return changed;
+}
+
+function nextMemberNo(){
+  return appState.members.length + 1;
+}
+
+function saveState(){
+  setStatus('保存中…', 'saving');
+  docRef.set(appState)
+    .then(()=> setStatus('同期済み ✓'))
+    .catch((e)=>{ console.error(e); setStatus('保存エラー', 'error'); alert('保存に失敗しました。通信環境をご確認ください。\n' + e.message); });
+}
+
+function genId(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1600);
+}
+
+// ---------- タブ切り替え ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab === 'export') populateExportEventSelect();
+  });
+});
+
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+
+// ---------- FABボタン（現在のタブに応じて新規追加） ----------
+document.getElementById('fabAdd').addEventListener('click', ()=>{
+  const active = document.querySelector('.tab-btn.active').dataset.tab;
+  if(active === 'events') openNewEventModal();
+  else if(active === 'members') openNewMemberModal();
+});
+
+// ============================================================
+//  イベント関連
+// ============================================================
+function openNewEventModal(){
+  document.getElementById('eventModalTitle').textContent = '新規イベント';
+  document.getElementById('eventId').value = '';
+  document.getElementById('eventName').value = '';
+  document.getElementById('eventDate').value = '';
+  document.getElementById('eventStartTime').value = '';
+  document.getElementById('eventVenue').value = '';
+  document.getElementById('eventOrganizer').value = '';
+  document.getElementById('eventPurpose').value = '';
+  document.getElementById('eventMemo').value = '';
+  document.getElementById('eventDeleteBtn').style.display = 'none';
+  openModal('eventModalBg');
+}
+
+function openEditEventModal(id){
+  const ev = appState.events.find(e=>e.id===id);
+  if(!ev) return;
+  document.getElementById('eventModalTitle').textContent = 'イベント編集';
+  document.getElementById('eventId').value = ev.id;
+  document.getElementById('eventName').value = ev.name || '';
+  document.getElementById('eventDate').value = ev.date || '';
+  document.getElementById('eventStartTime').value = ev.startTime || '';
+  document.getElementById('eventVenue').value = ev.venue || '';
+  document.getElementById('eventOrganizer').value = ev.organizer || '';
+  document.getElementById('eventPurpose').value = ev.purpose || '';
+  document.getElementById('eventMemo').value = ev.memo || '';
+  document.getElementById('eventDeleteBtn').style.display = 'inline-block';
+  openModal('eventModalBg');
+}
+
+function editCurrentEventInfo(){
+  closeModal('eventDetailModalBg');
+  openEditEventModal(currentEventId);
+}
+
+function saveEvent(){
+  const name = document.getElementById('eventName').value.trim();
+  if(!name){ alert('イベント名を入力してください'); return; }
+  const id = document.getElementById('eventId').value;
+  const data = {
+    name,
+    date: document.getElementById('eventDate').value,
+    startTime: document.getElementById('eventStartTime').value,
+    venue: document.getElementById('eventVenue').value.trim(),
+    organizer: document.getElementById('eventOrganizer').value.trim(),
+    purpose: document.getElementById('eventPurpose').value.trim(),
+    memo: document.getElementById('eventMemo').value.trim(),
+  };
+  if(id){
+    const ev = appState.events.find(e=>e.id===id);
+    Object.assign(ev, data);
+  } else {
+    appState.events.unshift({ id: genId(), participants: [], createdAt: Date.now(), ...data });
+  }
+  saveState();
+  closeModal('eventModalBg');
+  showToast('保存しました');
+}
+
+function deleteEvent(){
+  const id = document.getElementById('eventId').value;
+  if(!confirm('このイベントを削除しますか？参加者記録も削除されます。')) return;
+  appState.events = appState.events.filter(e=>e.id!==id);
+  saveState();
+  closeModal('eventModalBg');
+  showToast('削除しました');
+}
+
+function renderEvents(){
+  const list = document.getElementById('eventList');
+  const kw = (document.getElementById('eventSearch').value||'').toLowerCase();
+  let evs = [...appState.events].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  if(kw){
+    evs = evs.filter(e => [e.name,e.organizer,e.purpose,e.venue].join(' ').toLowerCase().includes(kw));
+  }
+  if(evs.length===0){ list.innerHTML = '<div class="empty">イベントがまだありません。右下の＋から追加してください。</div>'; return; }
+  list.innerHTML = evs.map(ev=>{
+    const parts = ev.participants || [];
+    const invited = parts.filter(p=>p.invited).length;
+    const attended = parts.filter(p=>p.attendance==='〇 出席').length;
+    return `<div class="card" onclick="openEventDetail('${ev.id}')">
+      <h3>${esc(ev.name)}</h3>
+      <div class="meta">
+        ${ev.date? '📅 '+esc(ev.date):''}${ev.startTime? ' '+esc(ev.startTime)+'〜':''} ${ev.venue? ' / 📍 '+esc(ev.venue):''}<br>
+        ${ev.organizer? '主催：'+esc(ev.organizer):''}
+        ${ev.purpose? '<br>主旨：'+esc(ev.purpose):''}
+      </div>
+      <span class="tag org">声掛け ${invited}名</span>
+      <span class="tag attend">出席 ${attended}名</span>
+    </div>`;
+  }).join('');
+}
+document.getElementById('eventSearch').addEventListener('input', renderEvents);
+
+// ---------- イベント詳細：声掛け選定・出欠管理 ----------
+function openEventDetail(id){
+  currentEventId = id;
+  const ev = appState.events.find(e=>e.id===id);
+  if(!ev) return;
+  document.getElementById('eventDetailTitle').textContent = ev.name;
+  document.getElementById('eventDetailMeta').innerHTML =
+    `${ev.date? '📅 '+esc(ev.date):''}${ev.startTime? ' '+esc(ev.startTime)+'〜':''} ${ev.venue? ' / 📍 '+esc(ev.venue):''}<br>
+     ${ev.organizer? '主催：'+esc(ev.organizer)+'　':''}${ev.purpose? '主旨：'+esc(ev.purpose):''}`;
+  populateDetailOrgFilter();
+  document.getElementById('detailMemberSearch').value = '';
+  document.getElementById('detailFilterInvited').value = '';
+  document.getElementById('detailFilterAttendance').value = '';
+  renderDetailPlist();
+  openModal('eventDetailModalBg');
+}
+
+function populateDetailOrgFilter(){
+  const orgSel = document.getElementById('detailFilterOrg');
+  const orgs = [...new Set(appState.members.map(m=>m.org).filter(Boolean))].sort();
+  const keepOrg = orgSel.value;
+  orgSel.innerHTML = '<option value="">所属：すべて</option>' + orgs.map(o=>`<option>${esc(o)}</option>`).join('');
+  orgSel.value = keepOrg;
+
+  const ageSel = document.getElementById('detailFilterAge');
+  const ageOrder = ['20代','30代','40代','50代','60代','70代以上'];
+  const ages = [...new Set(appState.members.map(m=>m.ageGroup).filter(Boolean))]
+    .sort((a,b)=> ageOrder.indexOf(a) - ageOrder.indexOf(b));
+  const keepAge = ageSel.value;
+  ageSel.innerHTML = '<option value="">年代：すべて</option>' + ages.map(a=>`<option>${esc(a)}</option>`).join('');
+  ageSel.value = keepAge;
+
+  const genderSel = document.getElementById('detailFilterGender');
+  const genders = [...new Set(appState.members.map(m=>m.gender).filter(Boolean))];
+  const keepGender = genderSel.value;
+  genderSel.innerHTML = '<option value="">性別：すべて</option>' + genders.map(g=>`<option>${esc(g)}</option>`).join('');
+  genderSel.value = keepGender;
+}
+document.getElementById('detailMemberSearch').addEventListener('input', renderDetailPlist);
+document.getElementById('detailFilterOrg').addEventListener('change', renderDetailPlist);
+document.getElementById('detailFilterAge').addEventListener('change', renderDetailPlist);
+document.getElementById('detailFilterGender').addEventListener('change', renderDetailPlist);
+document.getElementById('detailFilterInvited').addEventListener('change', renderDetailPlist);
+document.getElementById('detailFilterAttendance').addEventListener('change', renderDetailPlist);
+
+function memberHistoryInfo(memberId, excludeEventId){
+  const past = appState.events.filter(e=>e.id!==excludeEventId)
+    .flatMap(e => (e.participants||[]).filter(p=>p.memberId===memberId).map(p=>({date:e.date, attendance:p.attendance})));
+  const attendedCount = past.filter(p=>p.attendance==='〇 出席').length;
+  const lastDate = past.map(p=>p.date).filter(Boolean).sort().pop();
+  return { total: past.length, attendedCount, lastDate };
+}
+
+function renderDetailPlist(){
+  const ev = appState.events.find(e=>e.id===currentEventId);
+  if(!ev) return;
+  const kw = (document.getElementById('detailMemberSearch').value||'').toLowerCase();
+  const orgFilter = document.getElementById('detailFilterOrg').value;
+  const ageFilter = document.getElementById('detailFilterAge').value;
+  const genderFilter = document.getElementById('detailFilterGender').value;
+  const invitedFilter = document.getElementById('detailFilterInvited').value;
+  const attendanceFilter = document.getElementById('detailFilterAttendance').value;
+  let members = [...appState.members];
+  if(kw) members = members.filter(m=>[m.name,m.org,m.industry].join(' ').toLowerCase().includes(kw));
+  if(orgFilter) members = members.filter(m=>m.org===orgFilter);
+  if(ageFilter) members = members.filter(m=>m.ageGroup===ageFilter);
+  if(genderFilter) members = members.filter(m=>m.gender===genderFilter);
+  if(invitedFilter || attendanceFilter){
+    members = members.filter(m=>{
+      const p = (ev.participants||[]).find(pp=>pp.memberId===m.id);
+      const isInvited = !!p;
+      if(invitedFilter === 'invited' && !isInvited) return false;
+      if(invitedFilter === 'notInvited' && isInvited) return false;
+      if(attendanceFilter){
+        if(!isInvited) return false; // 出欠は声掛け対象になっている人にのみ意味を持つ
+        const att = p.attendance || '';
+        if(attendanceFilter === 'undecided') return att === '';
+        return att === attendanceFilter;
+      }
+      return true;
+    });
+  }
+  members.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ja'));
+
+  const wrap = document.getElementById('detailPlist');
+  if(members.length===0){ wrap.innerHTML = '<div class="empty">該当するメンバーがいません</div>'; return; }
+
+  wrap.innerHTML = members.map(m=>{
+    const p = (ev.participants||[]).find(p=>p.memberId===m.id);
+    const checked = !!p;
+    const hist = memberHistoryInfo(m.id, ev.id);
+    const histTag = hist.total>0
+      ? `<span class="tag count">過去${hist.total}回 / 出席${hist.attendedCount}回${hist.lastDate? ' (最終'+hist.lastDate+')':''}</span>`
+      : `<span class="tag noattend">声掛け履歴なし</span>`;
+    return `<div class="prow">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleParticipant('${m.id}', this.checked)">
+      <div class="pinfo">
+        <div class="pname" onclick="togglePdetail('${m.id}')">${esc(m.name)} ${m.org? '<span class="pmeta">'+esc(m.org)+'</span>':''}</div>
+        <div class="pmeta">${[m.industry,m.ageGroup,m.gender].filter(Boolean).join(' / ')} ${m.drink? ' / '+esc(m.drink):''}</div>
+        ${histTag}
+        ${m.note? '<div class="pmeta">📝 '+esc(m.note)+'</div>':''}
+        <div class="pdetail ${checked?'open':''}" id="pdetail-${m.id}">
+          <div class="row2">
+            <div class="field"><label>案内日</label><input type="date" value="${p?.inviteDate||''}" onchange="updateParticipantField('${m.id}','inviteDate',this.value)"></div>
+            <div class="field"><label>出欠</label>
+              <select onchange="updateParticipantField('${m.id}','attendance',this.value)">
+                <option value="">未定</option>
+                <option ${p?.attendance==='〇 出席'?'selected':''}>〇 出席</option>
+                <option ${p?.attendance==='× 欠席'?'selected':''}>× 欠席</option>
+              </select>
+            </div>
+          </div>
+          <div class="row2">
+            <div class="field"><label>返信日</label><input type="date" value="${p?.replyDate||''}" onchange="updateParticipantField('${m.id}','replyDate',this.value)"></div>
+            <div class="field"><label>案内担当</label><input type="text" value="${esc(p?.inviter||'')}" onchange="updateParticipantField('${m.id}','inviter',this.value)"></div>
+          </div>
+          <div class="field"><label>備考</label><input type="text" value="${esc(p?.note||'')}" onchange="updateParticipantField('${m.id}','note',this.value)"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePdetail(memberId){
+  const el = document.getElementById('pdetail-'+memberId);
+  if(el) el.classList.toggle('open');
+}
+
+function toggleParticipant(memberId, checked){
+  const ev = appState.events.find(e=>e.id===currentEventId);
+  if(!ev) return;
+  ev.participants = ev.participants || [];
+  const existing = ev.participants.find(p=>p.memberId===memberId);
+  if(checked && !existing){
+    ev.participants.push({ memberId, invited:true, attendance:'', inviteDate:'', replyDate:'', inviter:'', note:'' });
+  } else if(!checked && existing){
+    ev.participants = ev.participants.filter(p=>p.memberId!==memberId);
+  }
+  saveState();
+  renderDetailPlist();
+  renderEvents();
+}
+
+function updateParticipantField(memberId, field, value){
+  const ev = appState.events.find(e=>e.id===currentEventId);
+  if(!ev) return;
+  const p = (ev.participants||[]).find(p=>p.memberId===memberId);
+  if(!p) return;
+  p[field] = value;
+  saveState();
+  if(field==='attendance') renderEvents();
+}
+
+// ============================================================
+//  メンバー関連
+// ============================================================
+function openNewMemberModal(){
+  document.getElementById('memberModalTitle').textContent = '新規メンバー';
+  document.getElementById('memberNoDisplay').textContent = `会員ID：No.${nextMemberNo()}（保存時に付与）`;
+  ['memberId','memberName','memberOrg','memberIndustry','memberContact','memberReferrer','memberNote']
+    .forEach(id=>document.getElementById(id).value='');
+  document.getElementById('memberAge').value='';
+  document.getElementById('memberGender').value='';
+  document.getElementById('memberDrink').value='';
+  document.getElementById('memberDeleteBtn').style.display='none';
+  openModal('memberModalBg');
+}
+
+function openEditMemberModal(id){
+  const m = appState.members.find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById('memberModalTitle').textContent = 'メンバー編集';
+  document.getElementById('memberNoDisplay').textContent = m.memberNo!=null ? `会員ID：No.${m.memberNo}` : '';
+  document.getElementById('memberId').value = m.id;
+  document.getElementById('memberName').value = m.name||'';
+  document.getElementById('memberOrg').value = m.org||'';
+  document.getElementById('memberIndustry').value = m.industry||'';
+  document.getElementById('memberAge').value = m.ageGroup||'';
+  document.getElementById('memberGender').value = m.gender||'';
+  document.getElementById('memberDrink').value = m.drink||'';
+  document.getElementById('memberContact').value = m.contact||'';
+  document.getElementById('memberReferrer').value = m.referrer||'';
+  document.getElementById('memberNote').value = m.note||'';
+  document.getElementById('memberDeleteBtn').style.display='inline-block';
+  openModal('memberModalBg');
+}
+
+function saveMember(){
+  const name = document.getElementById('memberName').value.trim();
+  if(!name){ alert('氏名を入力してください'); return; }
+  const id = document.getElementById('memberId').value;
+  const data = {
+    name,
+    org: document.getElementById('memberOrg').value.trim(),
+    industry: document.getElementById('memberIndustry').value.trim(),
+    ageGroup: document.getElementById('memberAge').value,
+    gender: document.getElementById('memberGender').value,
+    drink: document.getElementById('memberDrink').value,
+    contact: document.getElementById('memberContact').value.trim(),
+    referrer: document.getElementById('memberReferrer').value.trim(),
+    note: document.getElementById('memberNote').value.trim(),
+  };
+  if(id){
+    Object.assign(appState.members.find(m=>m.id===id), data);
+  } else {
+    appState.members.push({ id: genId(), createdAt: Date.now(), memberNo: nextMemberNo(), ...data });
+  }
+  saveState();
+  closeModal('memberModalBg');
+  showToast('保存しました');
+}
+
+function deleteMember(){
+  const id = document.getElementById('memberId').value;
+  if(!confirm('このメンバーを削除しますか？各イベントの参加記録からも削除されます。')) return;
+  appState.members = appState.members.filter(m=>m.id!==id);
+  appState.events.forEach(e=>{ e.participants = (e.participants||[]).filter(p=>p.memberId!==id); });
+  saveState();
+  closeModal('memberModalBg');
+  showToast('削除しました');
+}
+
+function populateMemberFilters(){
+  const orgs = [...new Set(appState.members.map(m=>m.org).filter(Boolean))].sort();
+  const inds = [...new Set(appState.members.map(m=>m.industry).filter(Boolean))].sort();
+  const ages = ['20代','30代','40代','50代','60代','70代以上'];
+  const fo = document.getElementById('filterOrg');
+  const fi = document.getElementById('filterIndustry');
+  const fa = document.getElementById('filterAge');
+  const keepOrg = fo.value, keepInd = fi.value, keepAge = fa.value;
+  fo.innerHTML = '<option value="">所属：すべて</option>' + orgs.map(o=>`<option>${esc(o)}</option>`).join('');
+  fi.innerHTML = '<option value="">業種：すべて</option>' + inds.map(i=>`<option>${esc(i)}</option>`).join('');
+  fa.innerHTML = '<option value="">年代：すべて</option>' + ages.map(a=>`<option>${a}</option>`).join('');
+  fo.value = keepOrg; fi.value = keepInd; fa.value = keepAge;
+}
+
+function renderMembers(){
+  populateMemberFilters();
+  const kw = (document.getElementById('memberSearch').value||'').toLowerCase();
+  const fOrg = document.getElementById('filterOrg').value;
+  const fInd = document.getElementById('filterIndustry').value;
+  const fAge = document.getElementById('filterAge').value;
+  const fHist = document.getElementById('filterHistory').value;
+
+  let members = [...appState.members];
+  if(kw) members = members.filter(m=>[m.name,m.org,m.industry].join(' ').toLowerCase().includes(kw));
+  if(fOrg) members = members.filter(m=>m.org===fOrg);
+  if(fInd) members = members.filter(m=>m.industry===fInd);
+  if(fAge) members = members.filter(m=>m.ageGroup===fAge);
+  if(fHist){
+    members = members.filter(m=>{
+      const h = memberHistoryInfo(m.id);
+      return fHist==='has' ? h.total>0 : h.total===0;
+    });
+  }
+  members.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ja'));
+
+  const list = document.getElementById('memberList');
+  if(members.length===0){ list.innerHTML = '<div class="empty">該当するメンバーがいません</div>'; return; }
+  list.innerHTML = members.map(m=>{
+    const h = memberHistoryInfo(m.id);
+    return `<div class="card" onclick="openEditMemberModal('${m.id}')">
+      <h3>${m.memberNo!=null? `<span class="tag org" style="margin-right:6px;">No.${m.memberNo}</span>`:''}${esc(m.name)}</h3>
+      <div class="meta">
+        ${[m.org].filter(Boolean).join(' ')}<br>
+        ${[m.industry,m.ageGroup,m.gender].filter(Boolean).join(' / ')}
+        ${m.drink? ' / 🍶 '+esc(m.drink):''}
+      </div>
+      ${h.total>0? `<span class="tag count">参加${h.total}回・出席${h.attendedCount}回${h.lastDate? '（最終'+h.lastDate+'）':''}</span>` : `<span class="tag noattend">声掛け履歴なし</span>`}
+      ${m.note? '<div class="meta">📝 '+esc(m.note)+'</div>':''}
+    </div>`;
+  }).join('');
+}
+['memberSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderMembers));
+['filterOrg','filterIndustry','filterAge','filterHistory'].forEach(id=>document.getElementById(id).addEventListener('change', renderMembers));
+
+// ============================================================
+//  メンバー CSV / Excel 読み込み
+// ============================================================
+function normName(s){ return (s||'').toString().replace(/\s+/g,''); }
+
+function openPasteImportModal(){
+  document.getElementById('pasteImportText').value = '';
+  openModal('pasteImportModalBg');
+}
+
+// シートの先頭に「アラカンパーティー　参加者リスト」のようなタイトル行があっても、
+// 「氏名」列を含む行を自動検出してヘッダー行として扱う（アプリ自身が出力した参加者リストの再読込にも対応）
+function sheetToRowsAutoHeader(sheet){
+  const raw = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'', blankrows:false });
+  if(raw.length === 0) return [];
+  let headerRowIdx = raw.findIndex(row=> row.some(cell=>{
+    const s = String(cell ?? '').trim();
+    return s === '氏名' || s.toLowerCase() === 'name';
+  }));
+  if(headerRowIdx === -1) headerRowIdx = 0; // 見つからない場合は従来通り1行目をヘッダー扱い
+  const headerRow = raw[headerRowIdx];
+  return raw.slice(headerRowIdx + 1).map(row=>{
+    const obj = {};
+    headerRow.forEach((h,i)=>{
+      const key = String(h ?? '').trim();
+      if(key) obj[key] = row[i] !== undefined ? row[i] : '';
+    });
+    return obj;
+  });
+}
+
+function submitPasteImport(){
+  const text = document.getElementById('pasteImportText').value.trim();
+  if(!text){ alert('データを貼り付けてください'); return; }
+  try{
+    const wb = XLSX.read(text, { type: 'string' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = sheetToRowsAutoHeader(sheet);
+    if(rows.length === 0){ alert('データを読み取れませんでした。貼り付け内容をご確認ください。'); return; }
+    importMemberRows(rows);
+    closeModal('pasteImportModalBg');
+  } catch(err){
+    console.error(err);
+    alert('読み込みに失敗しました。\n' + err.message);
+  }
+}
+
+function handleMemberImport(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const isCSV = /\.csv$/i.test(file.name);
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const wb = isCSV
+        ? XLSX.read(evt.target.result, { type: 'string' })
+        : XLSX.read(evt.target.result, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = sheetToRowsAutoHeader(sheet);
+      importMemberRows(rows);
+    } catch(err){
+      console.error(err);
+      alert('読み込みに失敗しました。ファイル形式をご確認ください。\n' + err.message);
+    }
+  };
+  reader.onerror = function(){ alert('ファイルの読み込みに失敗しました。'); };
+  if(isCSV) reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function formatRate(v){
+  if(v === '' || v === undefined || v === null) return '';
+  if(typeof v === 'number'){
+    // ExcelやSheetJSは "41%" のようなセルを 0.41 の小数として読み込むことがあるため補正
+    const pct = v <= 1 ? v * 100 : v;
+    return Math.round(pct * 10) / 10 + '%';
+  }
+  return v.toString().trim();
+}
+
+function importMemberRows(rows){
+  const genderMap = { '男':'男性', '女':'女性', '男性':'男性', '女性':'女性', 'その他':'その他' };
+  let added = 0, updated = 0, skipped = 0;
+
+  rows.forEach(r=>{
+    const name = (r['氏名'] ?? r['name'] ?? '').toString().trim();
+    if(!name){ skipped++; return; }
+
+    const org = (r['所属'] ?? '').toString().trim();
+    const industry = (r['業種'] ?? '').toString().trim();
+    const ageGroup = (r['年代'] ?? '').toString().trim();
+    const genderRaw = (r['性別'] ?? '').toString().trim();
+    const gender = genderMap[genderRaw] || '';
+    const memo = (r['メモ'] ?? r['備考'] ?? '').toString().trim();
+    const attendCount = (r['出席回数'] ?? '').toString().trim();
+    const attendRate = formatRate(r['参加率']);
+
+    let refNote = '';
+    if(attendCount || attendRate){
+      refNote = `【参考】他イベント参加実績：出席${attendCount||'0'}回${attendRate? '（'+attendRate+'）':''}`;
+    }
+
+    const norm = normName(name);
+    const existing = appState.members.find(m => normName(m.name) === norm);
+
+    if(existing){
+      if(!existing.org && org) existing.org = org;
+      if(!existing.industry && industry) existing.industry = industry;
+      if(!existing.ageGroup && ageGroup) existing.ageGroup = ageGroup;
+      if(!existing.gender && gender) existing.gender = gender;
+      if(memo && !(existing.note||'').includes(memo)){
+        existing.note = [existing.note, memo].filter(Boolean).join(' / ');
+      }
+      if(refNote && !(existing.note||'').includes('【参考】他イベント参加実績')){
+        existing.note = [existing.note, refNote].filter(Boolean).join(' / ');
+      }
+      updated++;
+    } else {
+      appState.members.push({
+        id: genId(), createdAt: Date.now(), memberNo: nextMemberNo(),
+        name, org, industry, ageGroup, gender,
+        drink: '', contact: '', referrer: '',
+        note: [memo, refNote].filter(Boolean).join(' / ')
+      });
+      added++;
+    }
+  });
+
+  saveState();
+  renderMembers();
+  let msg = `読み込み完了：新規${added}件 / 既存更新${updated}件`;
+  if(skipped) msg += ` / 氏名なしスキップ${skipped}件`;
+  alert(msg);
+}
+
+// ============================================================
+//  出力機能
+// ============================================================
+function esc(s){
+  if(s===undefined || s===null) return '';
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function populateExportEventSelect(){
+  const sel = document.getElementById('exportEventSelect');
+  const evs = [...appState.events].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  sel.innerHTML = evs.map(e=>`<option value="${e.id}">${esc(e.date||'日付未定')}${e.startTime? ' '+esc(e.startTime):''} ${esc(e.name)}</option>`).join('') || '<option value="">イベントがありません</option>';
+  populateExportFilters();
+}
+
+// 出力タブの絞り込みセレクト（所属・年代・性別）の選択肢を、登録メンバーの実データから生成する
+function populateExportFilters(){
+  const orgSel = document.getElementById('exportFilterOrg');
+  const orgs = [...new Set(appState.members.map(m=>m.org).filter(Boolean))].sort();
+  const keepOrg = orgSel.value;
+  orgSel.innerHTML = '<option value="">所属：すべて</option>' + orgs.map(o=>`<option>${esc(o)}</option>`).join('');
+  orgSel.value = keepOrg;
+
+  const ageSel = document.getElementById('exportFilterAge');
+  const ageOrder = ['20代','30代','40代','50代','60代','70代以上'];
+  const ages = [...new Set(appState.members.map(m=>m.ageGroup).filter(Boolean))]
+    .sort((a,b)=> ageOrder.indexOf(a) - ageOrder.indexOf(b));
+  const keepAge = ageSel.value;
+  ageSel.innerHTML = '<option value="">年代：すべて</option>' + ages.map(a=>`<option>${esc(a)}</option>`).join('');
+  ageSel.value = keepAge;
+
+  const genderSel = document.getElementById('exportFilterGender');
+  const genders = [...new Set(appState.members.map(m=>m.gender).filter(Boolean))];
+  const keepGender = genderSel.value;
+  genderSel.innerHTML = '<option value="">性別：すべて</option>' + genders.map(g=>`<option>${esc(g)}</option>`).join('');
+  genderSel.value = keepGender;
+}
+
+// 出力タブの絞り込み条件を1行のラベルにまとめる（Excel/印刷のタイトルに添える用）
+function exportFilterLabel(){
+  const orgFilter = document.getElementById('exportFilterOrg').value;
+  const ageFilter = document.getElementById('exportFilterAge').value;
+  const genderFilter = document.getElementById('exportFilterGender').value;
+  const attendanceFilter = document.getElementById('exportFilterAttendance').value;
+  const parts = [];
+  if(orgFilter) parts.push(orgFilter);
+  if(ageFilter) parts.push(ageFilter);
+  if(genderFilter) parts.push(genderFilter);
+  if(attendanceFilter) parts.push(attendanceFilter==='undecided' ? '未定' : attendanceFilter);
+  return parts.length ? `（絞り込み：${parts.join('・')}）` : '';
+}
+
+// 出力タブで選択された所属・年代・性別・出欠の条件で参加者リストを絞り込む
+function getFilteredParticipantRows(ev){
+  const orgFilter = document.getElementById('exportFilterOrg').value;
+  const ageFilter = document.getElementById('exportFilterAge').value;
+  const genderFilter = document.getElementById('exportFilterGender').value;
+  const attendanceFilter = document.getElementById('exportFilterAttendance').value;
+  let rows = participantRows(ev);
+  if(orgFilter) rows = rows.filter(r=> r['所属']===orgFilter);
+  if(ageFilter) rows = rows.filter(r=> r['年代']===ageFilter);
+  if(genderFilter) rows = rows.filter(r=> r['性別']===genderFilter);
+  if(attendanceFilter){
+    rows = rows.filter(r=>{
+      if(attendanceFilter === 'undecided') return r['出欠'] === '未定';
+      return r['出欠'] === attendanceFilter;
+    });
+  }
+  return rows;
+}
+
+function memberRow(m){
+  const h = memberHistoryInfo(m.id);
+  return {
+    '会員ID': m.memberNo!=null ? m.memberNo : '',
+    '氏名': m.name||'', '所属': m.org||'', '業種': m.industry||'', '年代': m.ageGroup||'',
+    '性別': m.gender||'', 'お酒': m.drink||'', '連絡先': m.contact||'', '紹介者': m.referrer||'',
+    '過去参加回数': h.total, '出席回数': h.attendedCount, '最終参加日': h.lastDate||'',
+    '備考': m.note||''
+  };
+}
+
+// ブラウザでExcelJSのワークブックをファイルとしてダウンロードする
+async function downloadWorkbook(wb, filename){
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
+
+function safeSheetName(name){
+  return (name||'Sheet').replace(/[\\\/\?\*\[\]:]/g,'').slice(0,31) || 'Sheet';
+}
+
+// タイトル（会の名称）・開催日時・出力日時つきのシートを作成する共通関数
+// A4縦・余白最小のページ設定と、読みやすいよう行の高さ（行間）を確保する
+// 全角文字を2、半角文字を1としてカウントした表示幅を返す（Excel列幅の目安計算用）
+function strWidth(s){
+  s = String(s ?? '');
+  let w = 0;
+  for(const ch of s){
+    const code = ch.codePointAt(0);
+    const isWide = (code >= 0x1100 && code <= 0x115F) || code === 0x2329 || code === 0x232A ||
+      (code >= 0x2E80 && code <= 0xA4CF && code !== 0x303F) ||
+      (code >= 0xAC00 && code <= 0xD7A3) ||
+      (code >= 0xF900 && code <= 0xFAFF) ||
+      (code >= 0xFE30 && code <= 0xFE6F) ||
+      (code >= 0xFF00 && code <= 0xFF60) ||
+      (code >= 0xFFE0 && code <= 0xFFE6);
+    w += isWide ? 2 : 1;
+  }
+  return w;
+}
+
+// 列名に応じて自動計算幅に重み付けする（氏名・所属・業種は縮小、備考は広めに確保）
+function columnWidthWeight(colName){
+  if(colName === '氏名' || colName === '所属' || colName === '業種') return 0.6;
+  if(colName === '備考') return 6;
+  return 1;
+}
+
+function addTitledSheet(wb, sheetName, title, dateTimeStr, cols, rows){
+  const ws = wb.addWorksheet(safeSheetName(sheetName), {
+    pageSetup: {
+      paperSize: 9, orientation: 'portrait',
+      fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left:0.2, right:0.2, top:0.3, bottom:0.3, header:0.3, footer:0.1 }
+    }
+  });
+
+  // 出力日時はセル本文ではなく、印刷時にページ上部（ヘッダー）に表示する
+  ws.headerFooter.oddHeader = `&R&8出力日時：${nowStr()}`;
+  ws.headerFooter.evenHeader = `&R&8出力日時：${nowStr()}`;
+
+  const colCount = Math.max(cols.length, 1);
+  let r = 1;
+
+  ws.mergeCells(r,1,r,colCount);
+  ws.getCell(r,1).value = title;
+  ws.getCell(r,1).font = { bold:true, size:14 };
+  ws.getCell(r,1).alignment = { horizontal:'center', vertical:'middle' };
+  ws.getRow(r).height = 24;
+  r++;
+
+  if(dateTimeStr){
+    ws.mergeCells(r,1,r,colCount);
+    ws.getCell(r,1).value = `開催日時：${dateTimeStr}`;
+    ws.getCell(r,1).font = { size:10, color:{argb:'FF555555'} };
+    ws.getCell(r,1).alignment = { horizontal:'center', vertical:'middle' };
+    ws.getRow(r).height = 16;
+    r++;
+  }
+
+  r++; // 空行
+
+  const headerRowIdx = r;
+  const headerRow = ws.getRow(headerRowIdx);
+  headerRow.values = cols;
+  headerRow.height = 20;
+  headerRow.eachCell({ includeEmpty:true }, (cell, colNumber)=>{
+    const colName = cols[colNumber-1];
+    cell.font = { bold:true };
+    cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFEEEEEE' } };
+    cell.alignment = { vertical:'middle', horizontal: colName==='備考' ? 'left' : 'center', shrinkToFit:true };
+  });
+  r++;
+
+  rows.forEach(rowObj=>{
+    const row = ws.getRow(r);
+    row.values = cols.map(c=> rowObj[c]);
+    row.height = 20; // 行間を確保して読みやすくする
+    // セルに収まらない場合は自動的にフォントを縮小して1行に収める。備考以外は中央揃え
+    row.eachCell({ includeEmpty:true }, (cell, colNumber)=>{
+      const colName = cols[colNumber-1];
+      cell.alignment = { vertical:'middle', horizontal: colName==='備考' ? 'left' : 'center', shrinkToFit:true };
+    });
+    r++;
+  });
+  const lastRow = r - 1;
+
+  // 列幅（全角文字を考慮した表示幅で計算。氏名・所属・業種は縮小、備考は広めに確保）
+  cols.forEach((c,i)=>{
+    const maxW = Math.max(strWidth(c), ...rows.map(rr=> strWidth(rr[c])), 0) * columnWidthWeight(c);
+    ws.getColumn(i+1).width = Math.min(Math.max(maxW + 2, 10), 60);
+  });
+
+  // ヘッダー〜データ全体に罫線
+  for(let rowNum = headerRowIdx; rowNum <= lastRow; rowNum++){
+    for(let colNum = 1; colNum <= colCount; colNum++){
+      ws.getCell(rowNum, colNum).border = {
+        top:{style:'thin'}, left:{style:'thin'}, bottom:{style:'thin'}, right:{style:'thin'}
+      };
+    }
+  }
+
+  return ws;
+}
+
+async function exportMembersExcel(){
+  if(appState.members.length===0){ alert('メンバーが登録されていません'); return; }
+  const rows = appState.members.map(memberRow);
+  const cols = Object.keys(rows[0]);
+  const wb = new ExcelJS.Workbook();
+  addTitledSheet(wb, 'メンバー名簿', 'メンバー名簿', '', cols, rows);
+  await downloadWorkbook(wb, `メンバー名簿_${todayStr()}.xlsx`);
+}
+
+function participantRows(ev){
+  return (ev.participants||[]).map(p=>{
+    const m = appState.members.find(mm=>mm.id===p.memberId) || {};
+    return {
+      '会員ID': m.memberNo!=null ? m.memberNo : '',
+      '氏名': m.name||'(削除済み)', '所属': m.org||'', '業種': m.industry||'',
+      '年代': m.ageGroup||'', '性別': m.gender||'',
+      '出欠': p.attendance||'未定', '案内日': p.inviteDate||'', '返信日': p.replyDate||'',
+      '案内担当': p.inviter||'', '備考': p.note||''
+    };
+  });
+}
+
+async function exportAllEventsExcel(){
+  if(appState.events.length===0){ alert('イベントが登録されていません'); return; }
+  const wb = new ExcelJS.Workbook();
+
+  const summaryRows = appState.events.map(e=>({
+    'イベント名': e.name, '開催日': e.date||'', '開始時間': e.startTime||'', '場所': e.venue||'', '主催': e.organizer||'',
+    '主旨': e.purpose||'', '声掛け人数': (e.participants||[]).length,
+    '出席人数': (e.participants||[]).filter(p=>p.attendance==='〇 出席').length
+  }));
+  const summaryCols = Object.keys(summaryRows[0] || {'イベント名':''});
+  addTitledSheet(wb, 'イベント一覧', 'イベント一覧（全件）', '', summaryCols, summaryRows);
+
+  const usedNames = new Set(['イベント一覧']);
+  appState.events.forEach((e,i)=>{
+    const rows = participantRows(e);
+    if(rows.length===0) return;
+    const cols = Object.keys(rows[0]);
+    const dateTimeStr = [e.date||'', e.startTime||''].filter(Boolean).join(' ');
+    let sheetName = safeSheetName((e.date? e.date+' ':'') + e.name) || ('event'+i);
+    let uniqueName = sheetName;
+    let n = 2;
+    while(usedNames.has(uniqueName)){ uniqueName = safeSheetName(sheetName).slice(0,28) + '_' + n; n++; }
+    usedNames.add(uniqueName);
+    addTitledSheet(wb, uniqueName, `${e.name}　参加者リスト`, dateTimeStr, cols, rows);
+  });
+  await downloadWorkbook(wb, `イベント全件_${todayStr()}.xlsx`);
+}
+
+async function exportSingleEventExcel(){
+  const id = document.getElementById('exportEventSelect').value;
+  const ev = appState.events.find(e=>e.id===id);
+  if(!ev){ alert('イベントを選択してください'); return; }
+  const rows = getFilteredParticipantRows(ev);
+  if(rows.length===0){ alert('条件に該当する参加者がいません'); return; }
+  const cols = Object.keys(rows[0]);
+  const dateTimeStr = [ev.date||'', ev.startTime||''].filter(Boolean).join(' ');
+  const wb = new ExcelJS.Workbook();
+  addTitledSheet(wb, '参加者リスト', `${ev.name}　参加者リスト${exportFilterLabel()}`, dateTimeStr, cols, rows);
+  await downloadWorkbook(wb, `${ev.name}_参加者リスト.xlsx`);
+}
+
+function todayStr(){
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function printMembers(){
+  if(appState.members.length===0){ alert('メンバーが登録されていません'); return; }
+  const rows = appState.members.map(memberRow);
+  // 印刷/PDF出力では「お酒」「連絡先」は表示しない（Excel出力には引き続き含まれる）
+  const excludeCols = ['お酒', '連絡先'];
+  const cols = Object.keys(rows[0]).filter(c=> !excludeCols.includes(c));
+  const filteredRows = rows.map(r=>{
+    const nr = {};
+    cols.forEach(c=> nr[c] = r[c]);
+    return nr;
+  });
+  renderPrintTable('メンバー名簿', '', cols, filteredRows);
+}
+
+function printSingleEvent(){
+  const id = document.getElementById('exportEventSelect').value;
+  const ev = appState.events.find(e=>e.id===id);
+  if(!ev){ alert('イベントを選択してください'); return; }
+  const rows = getFilteredParticipantRows(ev);
+  if(rows.length===0){ alert('条件に該当する参加者がいません'); return; }
+  const cols = Object.keys(rows[0]);
+  const dateTimeStr = [ev.date||'', ev.startTime||''].filter(Boolean).join(' ');
+  renderPrintTable(`${ev.name}　参加者リスト${exportFilterLabel()}`, dateTimeStr, cols, rows);
+}
+
+function nowStr(){
+  const d = new Date();
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// 印刷/PDF出力：非表示iframeにA4用の完全なHTML文書を書き出して印刷する。
+// メインページのdisplay状態やiOS Safariの挙動に左右されず、PC・iPhone双方で安定して動作する。
+function renderPrintTable(title, dateTimeStr, cols, rows){
+  const infoLine = dateTimeStr ? `開催日時：${esc(dateTimeStr)}` : '';
+
+  // 備考は内容が長くなりやすいため、1行に収まらない場合は
+  // 消えて見切れないよう折り返し表示（wrapクラス）にする。
+  // 氏名・所属・業種は折り返さず、縮小して1行で表示する（狭い列で改行されるのを防ぐ）。
+  // isHeader: true なら見出し(th)用。備考は見出しをセンタリング、データは左寄せのまま。
+  function cellClass(c, isHeader){
+    const classes = [];
+    if(c==='備考') classes.push('wrap');
+    if(c==='備考' && !isHeader) classes.push('align-left');
+    return classes.length ? ` class="${classes.join(' ')}"` : '';
+  }
+
+  // 印刷用の列幅重み付け（Excel出力用のcolumnWidthWeightとは別に管理）。
+  // メンバー名簿等（固定比率を使わない表）で、氏名が狭くなりすぎ・備考が広くなりすぎる
+  // 問題があったため調整する。
+  function printColumnWidthWeight(colName){
+    if(colName === '氏名') return 3;
+    if(colName === '所属') return 1.3;
+    if(colName === '業種') return 0.8;
+    if(colName === '備考') return 1.5;
+    return 1;
+  }
+
+  // イベント参加者リスト（会員ID・氏名・所属・業種・出欠・案内日・返信日・案内担当・備考）は、
+  // イベントごとにデータの長さが違うと列幅が変わってしまい見た目がバラバラになるため、
+  // 内容に関わらず固定の幅比率を使う（第1回まぁるい杯で調整した比率をそのまま採用）。
+  const FIXED_COL_PERCENTS = {
+    '会員ID':5, '氏名':10, '所属':20, '業種':10, '出欠':6,
+    '案内日':9, '返信日':9, '案内担当':6, '備考':25
+  };
+  const useFixedPercents = cols.length===Object.keys(FIXED_COL_PERCENTS).length && cols.every(c=> c in FIXED_COL_PERCENTS);
+
+  let normalizedPercents;
+  if(useFixedPercents){
+    normalizedPercents = cols.map(c=> FIXED_COL_PERCENTS[c]);
+  } else {
+    // 上記に当てはまらない表（メンバー名簿等）は、これまで通り内容の長さに応じて自動計算する
+    const colWidths = cols.map(c=> Math.max(strWidth(c), ...rows.map(r=> strWidth(r[c])), 1) * printColumnWidthWeight(c));
+    const totalW = colWidths.reduce((a,b)=>a+b, 0) || 1;
+    const colPercents = colWidths.map(w=> Math.max((w/totalW)*100, 4));
+    const percentSum = colPercents.reduce((a,b)=>a+b, 0);
+    normalizedPercents = colPercents.map(p=> (p/percentSum)*100);
+  }
+  const colgroupHtml = `<colgroup>${normalizedPercents.map(p=>`<col style="width:${p.toFixed(2)}%">`).join('')}</colgroup>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<title>${esc(title)}</title>
+<style>
+  @page { size: A4 portrait; margin: 4mm; }
+  *{ box-sizing:border-box; }
+  /* iPhoneの画面幅(device-width)ではなく、A4印刷時の実寸(mm)に固定する。
+     画面幅を基準にすると、文字縮小の計算がスマホ画面用になってしまい、
+     実際に印刷されるA4用紙とサイズが合わず列や文字が詰まって見切れる原因になる。
+     ここでmm固定にすることで、画面上の計算と印刷結果の基準幅を一致させる。
+     （画面上ではA4幅そのままで表示されるため、iPhoneでは横スクロール／ピンチアウトで
+     全体を確認できる＝いわゆる印刷プレビューと同じ見え方になる） */
+  html, body{ width:210mm; }
+  body{
+    margin:0 auto; padding:8mm 5mm 5mm 5mm;
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+    color:#222;
+  }
+  .no-print{
+    background:#fffbe6; border:1px solid #e6d78a; border-radius:8px;
+    padding:10px 12px; margin:0 0 12px; font-size:12.5px; color:#5c4d00; line-height:1.6;
+  }
+  .no-print button{
+    display:block; width:100%; margin-top:8px; padding:11px; font-size:15px; font-weight:bold;
+    background:#2c6e6b; color:#fff; border:none; border-radius:8px;
+  }
+  @media print{ .no-print{ display:none !important; } }
+  .print-header{
+    position:fixed; top:2mm; right:5mm; left:5mm;
+    font-size:9px; color:#777; text-align:right;
+  }
+  h1{ font-size:16px; margin:0 0 4px; text-align:center; }
+  .info{ font-size:11px; color:#555; margin-bottom:10px; line-height:1.7; text-align:center; }
+  table{ border-collapse:collapse; width:100%; table-layout:fixed; font-size:11px; }
+  thead{ display:table-header-group; }
+  th, td{
+    border:1px solid #999; padding:5px 6px; text-align:center; line-height:1.5;
+    vertical-align:middle; overflow:hidden; white-space:nowrap;
+  }
+  th.align-left, td.align-left{ text-align:left; }
+  /* 氏名・所属・業種・備考は列幅が狭いため、1行に収まらない場合は
+     文字を消さず折り返して複数行で表示する（見切れ防止） */
+  th.wrap, td.wrap{ white-space:normal; word-break:break-all; overflow:hidden; }
+  th.wrap span, td.wrap span{ white-space:normal; word-break:break-all; }
+  th{ background:#eee; }
+  td span, th span{ display:inline-block; white-space:nowrap; max-width:100%; }
+  tr{ page-break-inside: avoid; }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    このページから印刷・PDF保存ができます。<br>
+    <b>iPhone/iPad：</b>共有ボタン（□に↑）から「プリント」を選ぶとプレビューが開き、そこからPDF保存できます。<br>
+    <b>パソコン：</b>下のボタンを押すか、Ctrl+P（Macは⌘+P）を押してください。
+    <button onclick="window.print()">🖨 印刷 / PDF保存</button>
+  </div>
+  <div class="print-header">出力日時：${esc(nowStr())}</div>
+  <h1>${esc(title)}</h1>
+  <div class="info">${infoLine}</div>
+  <table>
+    ${colgroupHtml}
+    <thead><tr>${cols.map(c=>`<th${cellClass(c, true)}><span>${esc(c)}</span></th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td${cellClass(c)}><span>${esc(r[c])}</span></td>`).join('')}</tr>`).join('')}</tbody>
+  </table>
+  <script>
+    // セルに収まらない文字は、実際のfont-sizeを縮小して1行に収める
+    function shrinkToFit(){
+      document.querySelectorAll('td span, th span').forEach(function(span){
+        var cell = span.parentElement;
+        if(cell.classList.contains('wrap')) return; // 折り返し列は縮小不要
+        var avail = cell.clientWidth - 12;
+        if(avail <= 0) return;
+        var full = span.scrollWidth;
+        if(full <= avail) return;
+        var baseSize = parseFloat(window.getComputedStyle(span).fontSize) || 11;
+        var minSize = 6;
+        var size = baseSize;
+        for(var i=0; i<8; i++){
+          if(span.scrollWidth <= avail || size <= minSize) break;
+          size = Math.max(size * (avail / span.scrollWidth) * 0.98, minSize);
+          span.style.fontSize = size.toFixed(2) + 'px';
+        }
+      });
+    }
+    // iOSのSafariでは document.fonts.ready がこの新規タブ（document.write生成）で
+    // 解決しないことがあり、その場合ここで処理が止まって縮小が一切行われない。
+    // → タイムアウト付きで必ず実行されるようにする。
+    var shrunkOnce = false;
+    function runShrinkOnce(){
+      if(shrunkOnce) return;
+      shrunkOnce = true;
+      shrinkToFit();
+    }
+    window.onload = function(){
+      var waitFonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+      var timeoutFallback = new Promise(function(resolve){ setTimeout(resolve, 500); });
+      Promise.race([waitFonts, timeoutFallback]).then(function(){
+        requestAnimationFrame(function(){ requestAnimationFrame(runShrinkOnce); });
+      });
+      // 保険：上記が何らかの理由で実行されなくても、0.8秒後に必ず一度実行する
+      setTimeout(runShrinkOnce, 800);
+    };
+    // iPhoneの「共有→プリント」操作では onbeforeprint が発火しないことがあるため、
+    // matchMedia('print') でも印刷検知を試みる（発火した場合は再度シャープに調整）
+    window.onbeforeprint = function(){ shrinkToFit(); };
+    if(window.matchMedia){
+      try{
+        var printMql = window.matchMedia('print');
+        var printMqlHandler = function(mql){ if(mql.matches) shrinkToFit(); };
+        if(printMql.addEventListener){ printMql.addEventListener('change', printMqlHandler); }
+        else if(printMql.addListener){ printMql.addListener(printMqlHandler); }
+      }catch(e){}
+    }
+  <\/script>
+</body></html>`;
+
+  // 隠しiframeでの自動印刷はiOS Safariとの相性問題があるため、新しいタブでページを開き、
+  // ユーザー自身が印刷/PDF保存を行う方式にする（他のTeamPアプリと同じ方式）
+  const win = window.open('', '_blank');
+  if(!win){
+    alert('新しいタブを開けませんでした。ブラウザのポップアップブロック設定をご確認のうえ、もう一度お試しください。');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+// ============================================================
+//  全体描画
+// ============================================================
+function renderAll(){
+  renderEvents();
+  renderMembers();
+  populateExportEventSelect();
+}
+
+</script>
+</body>
+</html>
