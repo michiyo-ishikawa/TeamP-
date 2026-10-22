@@ -143,6 +143,31 @@
   }
   #toast.show{opacity:1;}
 
+  /* メンバー別 参加履歴 */
+  .mh-section{margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);}
+  .mh-section h4{margin:0 0 8px; font-size:14px; color:var(--main-dark);}
+  .mh-summary{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:10px;}
+  .mh-stat{background:#f4f8f7; border-radius:8px; padding:6px 4px; text-align:center;}
+  .mh-stat .num{font-size:18px; font-weight:700; color:var(--main-dark); line-height:1.2;}
+  .mh-stat .lbl{font-size:10px; color:var(--muted);}
+  .mh-note{font-size:11px; color:var(--muted); margin-bottom:8px;}
+  .mh-list{border:1px solid var(--border); border-radius:10px; max-height:260px; overflow-y:auto; margin-bottom:12px;}
+  .mh-row{padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer;}
+  .mh-row:last-child{border-bottom:none;}
+  .mh-row:active{background:#f4f8f7;}
+  .mh-row .mh-top{display:flex; justify-content:space-between; gap:8px; align-items:flex-start;}
+  .mh-row .mh-name{font-size:13px; font-weight:600;}
+  .mh-row .mh-meta{font-size:11px; color:var(--muted); margin-top:2px;}
+  .mh-badge{font-size:11px; padding:2px 8px; border-radius:10px; white-space:nowrap; flex-shrink:0;}
+  .mh-badge.att{background:#e6f4e9; color:var(--ok);}
+  .mh-badge.abs{background:#fdeceb; color:var(--danger);}
+  .mh-badge.und{background:#eef0ef; color:var(--muted);}
+  .mh-badge.up{background:#e8eefb; color:#3a5a9c;}
+  .mh-chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .mh-chip{font-size:12px; padding:4px 10px; border-radius:14px; background:#e8f2f0; color:var(--main-dark); border:none; cursor:pointer; font-family:inherit;}
+  .mh-chip b{margin-left:4px;}
+  .mh-empty{font-size:12px; color:var(--muted); padding:8px 0;}
+
   .export-section{margin-bottom:18px;}
   .export-section h3{font-size:14px; margin-bottom:8px;}
   .export-buttons{display:flex; gap:8px; flex-wrap:wrap;}
@@ -320,6 +345,7 @@
     <h2 id="memberModalTitle">新規メンバー</h2>
     <div class="meta" id="memberNoDisplay" style="margin-bottom:10px;"></div>
     <input type="hidden" id="memberId">
+    <div id="memberHistorySection"></div>
     <div class="field"><label>氏名 *</label><input type="text" id="memberName"></div>
     <div class="field"><label>所属</label><input type="text" id="memberOrg"></div>
     <div class="row2">
@@ -647,7 +673,7 @@ function renderDetailPlist(){
       <div class="pinfo">
         <div class="pname" onclick="togglePdetail('${m.id}')">${esc(m.name)} ${m.org? '<span class="pmeta">'+esc(m.org)+'</span>':''}</div>
         <div class="pmeta">${[m.industry,m.ageGroup,m.gender].filter(Boolean).join(' / ')} ${m.drink? ' / '+esc(m.drink):''}</div>
-        ${histTag}
+        ${histTag}<button type="button" class="btn secondary small" style="padding:2px 8px;font-size:11px;margin-top:4px;" onclick="openEditMemberModal('${m.id}')">履歴を見る</button>
         ${m.note? '<div class="pmeta">📝 '+esc(m.note)+'</div>':''}
         <div class="pdetail ${checked?'open':''}" id="pdetail-${m.id}">
           <div class="row2">
@@ -713,6 +739,7 @@ function openNewMemberModal(){
   document.getElementById('memberGender').value='';
   document.getElementById('memberDrink').value='';
   document.getElementById('memberDeleteBtn').style.display='none';
+  renderMemberHistory(null);
   openModal('memberModalBg');
 }
 
@@ -732,7 +759,108 @@ function openEditMemberModal(id){
   document.getElementById('memberReferrer').value = m.referrer||'';
   document.getElementById('memberNote').value = m.note||'';
   document.getElementById('memberDeleteBtn').style.display='inline-block';
+  renderMemberHistory(m.id);
   openModal('memberModalBg');
+  document.querySelector('#memberModalBg .modal').scrollTop = 0;
+}
+
+// ---------- メンバー別 参加履歴・引き合わせ状況 ----------
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtDate(d){
+  if(!d) return '日付未定';
+  const [y,m,dd] = d.split('-');
+  return `${y}/${Number(m)}/${Number(dd)}`;
+}
+
+// このメンバーが声掛け対象になった全イベント（新しい順）
+function memberEventHistory(memberId){
+  return appState.events
+    .map(ev=>{ const p=(ev.participants||[]).find(pp=>pp.memberId===memberId); return p? {ev,p} : null; })
+    .filter(Boolean)
+    .sort((a,b)=>{
+      if(!a.ev.date) return -1; if(!b.ev.date) return 1; // 日付未定は先頭
+      return b.ev.date.localeCompare(a.ev.date);
+    });
+}
+
+// 同じイベントに「出席」した他メンバー（＝引き合わせ済みの相手）
+function memberCoAttendees(memberId){
+  const map = {};
+  appState.events.forEach(ev=>{
+    const parts = ev.participants||[];
+    const me = parts.find(p=>p.memberId===memberId);
+    if(!me || me.attendance!=='〇 出席') return;
+    parts.forEach(p=>{
+      if(p.memberId===memberId || p.attendance!=='〇 出席') return;
+      const o = map[p.memberId] || (map[p.memberId] = {memberId:p.memberId, count:0, events:[]});
+      o.count++; o.events.push(ev.name);
+    });
+  });
+  return Object.values(map)
+    .map(o=>({...o, member: appState.members.find(m=>m.id===o.memberId)}))
+    .filter(o=>o.member)
+    .sort((a,b)=> b.count-a.count || (a.member.name||'').localeCompare(b.member.name||'','ja'));
+}
+
+function renderMemberHistory(memberId){
+  const box = document.getElementById('memberHistorySection');
+  if(!memberId){ box.innerHTML=''; return; }
+  const hist = memberEventHistory(memberId);
+  const today = todayISO();
+  const isUpcoming = ev => ev.date && ev.date > today;
+  const attended = hist.filter(h=>h.p.attendance==='〇 出席' && !isUpcoming(h.ev)).length;
+  const absent = hist.filter(h=>h.p.attendance==='× 欠席').length;
+  const decided = hist.filter(h=>h.p.attendance && !isUpcoming(h.ev)).length;
+  const rate = decided>0 ? Math.round(attended/decided*100)+'%' : '－';
+  const lastAtt = hist.filter(h=>h.p.attendance==='〇 出席' && h.ev.date && !isUpcoming(h.ev)).map(h=>h.ev.date).sort().pop();
+
+  let html = `<div class="mh-section">
+    <h4>📋 参加履歴</h4>`;
+  if(hist.length===0){
+    html += `<div class="mh-empty">まだどのイベントにも声掛けしていません（新規候補）</div></div>`;
+    box.innerHTML = html; return;
+  }
+  html += `<div class="mh-summary">
+      <div class="mh-stat"><div class="num">${hist.length}</div><div class="lbl">声掛け</div></div>
+      <div class="mh-stat"><div class="num">${attended}</div><div class="lbl">出席</div></div>
+      <div class="mh-stat"><div class="num">${absent}</div><div class="lbl">欠席</div></div>
+      <div class="mh-stat"><div class="num">${rate}</div><div class="lbl">出席率</div></div>
+    </div>
+    <div class="mh-note">最終出席：${lastAtt? fmtDate(lastAtt) : 'なし'}　※タップでイベントを開きます</div>
+    <div class="mh-list">` +
+    hist.map(({ev,p})=>{
+      let badge;
+      if(p.attendance==='〇 出席') badge = isUpcoming(ev) ? '<span class="mh-badge up">出席予定</span>' : '<span class="mh-badge att">〇 出席</span>';
+      else if(p.attendance==='× 欠席') badge = '<span class="mh-badge abs">× 欠席</span>';
+      else badge = '<span class="mh-badge und">未定</span>';
+      const sub = [fmtDate(ev.date), ev.organizer? '主催：'+ev.organizer : '', p.inviter? '案内：'+p.inviter : ''].filter(Boolean).map(esc).join('　');
+      return `<div class="mh-row" onclick="openEventFromMember('${ev.id}')">
+        <div class="mh-top"><div class="mh-name">${esc(ev.name)}</div>${badge}</div>
+        <div class="mh-meta">${sub}</div>
+        ${p.note? `<div class="mh-meta">📝 ${esc(p.note)}</div>`:''}
+      </div>`;
+    }).join('') + `</div>`;
+
+  const co = memberCoAttendees(memberId);
+  html += `<h4>🤝 これまでに同席した方（${co.length}名）</h4>`;
+  if(co.length===0){
+    html += `<div class="mh-empty">同じイベントに出席した方はまだいません</div>`;
+  } else {
+    html += `<div class="mh-note">同じイベントに一緒に出席した方。数字は同席回数。タップでその方の履歴へ</div>
+      <div class="mh-chips">` +
+      co.map(o=>`<button type="button" class="mh-chip" title="${esc(o.events.join(' / '))}" onclick="openEditMemberModal('${o.memberId}')">${esc(o.member.name)}<b>×${o.count}</b></button>`).join('') +
+      `</div>`;
+  }
+  html += `</div>`;
+  box.innerHTML = html;
+}
+
+function openEventFromMember(eventId){
+  closeModal('memberModalBg');
+  openEventDetail(eventId);
 }
 
 function saveMember(){
@@ -816,7 +944,7 @@ function renderMembers(){
         ${[m.industry,m.ageGroup,m.gender].filter(Boolean).join(' / ')}
         ${m.drink? ' / 🍶 '+esc(m.drink):''}
       </div>
-      ${h.total>0? `<span class="tag count">参加${h.total}回・出席${h.attendedCount}回${h.lastDate? '（最終'+h.lastDate+'）':''}</span>` : `<span class="tag noattend">声掛け履歴なし</span>`}
+      ${h.total>0? `<span class="tag count">声掛け${h.total}回・出席${h.attendedCount}回${h.lastDate? '（最終'+h.lastDate+'）':''}</span>` : `<span class="tag noattend">声掛け履歴なし</span>`}
       ${m.note? '<div class="meta">📝 '+esc(m.note)+'</div>':''}
     </div>`;
   }).join('');
