@@ -1559,14 +1559,21 @@ function renderPrintTable(title, dateTimeStr, cols, rows){
 
   // 隠しiframeでの自動印刷はiOS Safariとの相性問題があるため、新しいタブでページを開き、
   // ユーザー自身が印刷/PDF保存を行う方式にする（他のTeamPアプリと同じ方式）
-  const win = window.open('', '_blank');
+  //
+  // ※以前は空タブ（about:blank）を開いて document.write で中身を書き込んでいたが、
+  //   最近のiOS Safariでは、そのように作ったタブ内では window.print() が無反応になる。
+  //   → HTMLをBlob（一時ファイル）にして、そのURLを新しいタブで開く方式に変更。
+  //     通常のページとして読み込まれるため、印刷ボタンが正しく動作する。
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
   if(!win){
+    URL.revokeObjectURL(url);
     alert('新しいタブを開けませんでした。ブラウザのポップアップブロック設定をご確認のうえ、もう一度お試しください。');
     return;
   }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  // ※一時URLはあえて解放しない（印刷タブの再読み込みや「共有→プリント」で
+  //   読み直された時に白紙にならないようにするため。元のタブを閉じれば自動で消える）
 }
 
 // ============================================================
