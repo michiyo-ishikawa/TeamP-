@@ -1564,6 +1564,12 @@ function renderPrintTable(title, dateTimeStr, cols, rows){
   //   最近のiOS Safariでは、そのように作ったタブ内では window.print() が無反応になる。
   //   → HTMLをBlob（一時ファイル）にして、そのURLを新しいタブで開く方式に変更。
   //     通常のページとして読み込まれるため、印刷ボタンが正しく動作する。
+  // ※ホーム画面に追加したアイコンから開いた場合、iPhoneの制限で印刷ができないため、
+  //   Safariで開くよう案内する（Safariから開けば印刷できる）
+  if(isStandaloneApp()){
+    alert('ホーム画面のアイコンから開いたアプリでは、iPhoneの制限により印刷できません。\n\n印刷するときは、Safariで下のアドレスを開いてください。\n' + location.href.split('#')[0].split('?')[0]);
+    return;
+  }
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const win = window.open(url, '_blank');
@@ -1574,6 +1580,15 @@ function renderPrintTable(title, dateTimeStr, cols, rows){
   }
   // ※一時URLはあえて解放しない（印刷タブの再読み込みや「共有→プリント」で
   //   読み直された時に白紙にならないようにするため。元のタブを閉じれば自動で消える）
+}
+
+// ホーム画面に追加したアイコンから開いているか（Safariのタブではないか）
+function isStandaloneApp(){
+  try{
+    if(window.navigator.standalone === true) return true;
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  }catch(e){}
+  return false;
 }
 
 // ============================================================
